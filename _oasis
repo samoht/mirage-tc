@@ -1,0 +1,27 @@
+OASISFormat:      0.3
+Name:             tc
+Version:          0.1.0
+Synopsis:         Mirage type-classes
+Authors:          Thomas Gazagnaire
+License:          ISC
+Plugins:          META (0.3), DevFiles (0.3)
+BuildTools:       ocamlbuild
+
+Library tc
+  Path:           lib/
+  Findlibname:    tc
+  Modules:        Tc
+  BuildDepends:   ezjsonm, sexplib, bin_prot, mstruct, cstruct
+
+Executable test
+  Path:           lib_test/
+  MainIs:         test.ml
+  Build$:         flag(tests)
+  CompiledObject: best
+  Install:        false
+  BuildDepends:   tc, alcotest, ounit
+
+Test test_tc
+  Run$:               flag(tests)
+  Command:            $test
+  WorkingDirectory:   lib_test
