@@ -229,7 +229,6 @@ module I0 (S: sig type t with sexp, bin_io, compare end) = struct
 
   let write t ({ Cstruct.buffer; off; _ } as buf) =
     let len = bin_t.writer.write buffer ~pos:off t in
-    Printf.printf "XXXX len=%d buf=%d\n" len (Cstruct.len buf);
     Cstruct.shift buf (len - off)
 
 end
