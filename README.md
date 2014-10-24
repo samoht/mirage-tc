@@ -3,7 +3,7 @@
 A set of functors and combinators to pretty-print (using sexplib), to
 convert to and from and JSON and Cstruct buffers.
 
-```
+```ocaml
 # Tc.show (module Tc.S) "Hello world!";;
 - : string = "\"Hello world!\""
 # Tc.to_json (module Tc.App2(Tc.P)(Tc.I)(Tc.S)) (3, "foo");;
@@ -13,7 +13,7 @@ convert to and from and JSON and Cstruct buffers.
 A slightly more complex example, using autogen code instead of functor
 composition:
 
-```
+```ocaml
 # camlp4o;;
 # require "sexplib.syntax";;
 # require "comparelib.syntax";;
