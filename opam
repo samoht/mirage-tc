@@ -1,12 +1,16 @@
-opam-version: "1"
-maintainer: "thomas@gazagnaire.org"
-authors: [ "Thomas Gazagnaire" ]
-license: "ISC"
+opam-version: "1.2"
+maintainer:   "thomas@gazagnaire.org"
+authors:      "Thomas Gazagnaire"
+homepage:     "https://github.com/mirage/mirage-tc"
+bug-reports:  "https://github.com/mirage/mirage-tc/issues"
+dev-repo:     "https://github.com/mirage/mirage-tc.git"
+license:      "ISC"
+
 build: [
   ["./configure" "--prefix" prefix]
   [make]
-  [make "install"]
 ]
+install: [make "install"]
 remove: ["ocamlfind" "remove" "tc"]
 depends: [
   "ezjsonm" {>= "0.3.0"}
@@ -14,4 +18,7 @@ depends: [
   "cstruct"
   "sexplib"
   "bin_prot"
+  "comparelib"
+  "alcotest" {test}
+  "ounit"    {test}
 ]

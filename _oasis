@@ -19,7 +19,7 @@ Executable test
   Build$:         flag(tests)
   CompiledObject: best
   Install:        false
-  BuildDepends:   tc, alcotest, ounit
+  BuildDepends:   tc, alcotest, oUnit
 
 Test test_tc
   Run$:               flag(tests)
