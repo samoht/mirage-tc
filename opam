@@ -18,4 +18,6 @@ depends: [
   "cstruct"
   "sexplib"
   "bin_prot"
+  "alcotest" {test}
+  "ounit"    {test}
 ]
