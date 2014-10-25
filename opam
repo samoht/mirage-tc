@@ -18,6 +18,7 @@ depends: [
   "cstruct"
   "sexplib"
   "bin_prot"
+  "comparelib"
   "alcotest" {test}
   "ounit"    {test}
 ]
