@@ -7,7 +7,7 @@ dev-repo:     "https://github.com/mirage/mirage-tc.git"
 license:      "ISC"
 
 build: [
-  ["./configure" "--prefix" prefix]
+  ["./configure" "--prefix" prefix "--%{alcotest:enable}%-tests"]
   [make]
 ]
 build-test: [make "test"]
