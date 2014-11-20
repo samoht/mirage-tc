@@ -17,7 +17,7 @@
 open Bin_prot.Std
 open Sexplib.Std
 
-exception Read_error
+exception Read_error of string
 
 type 'a equal = 'a -> 'a -> bool
 type 'a compare = 'a -> 'a -> int
@@ -133,7 +133,7 @@ module Reader = struct
         Mstruct.shift buf !pos_ref;
         t
       with Bin_prot.Common.Read_error _ ->
-        raise Read_error
+        raise (Read_error "of_bin_prot")
 
   let pair a b =
     of_bin_prot (Bin_prot.Read.bin_read_pair (to_bin_prot a) (to_bin_prot b))
@@ -147,6 +147,9 @@ module Reader = struct
 
   let option a =
     of_bin_prot (Bin_prot.Read.bin_read_option (to_bin_prot a))
+
+  let error fmt =
+    Printf.kprintf (fun msg -> raise (Read_error msg)) fmt
 
 end
 

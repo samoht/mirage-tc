@@ -31,7 +31,7 @@ type 'a to_sexp = 'a -> Sexplib.Sexp.t
 type 'a reader = Mstruct.t -> 'a
 (** Mstruct reader. *)
 
-exception Read_error
+exception Read_error of string
 (** [Read_error] can be raised by the [reader] type-classes. *)
 
 type 'a size_of = 'a -> int
@@ -213,6 +213,7 @@ module Reader: sig
   val triple: 'a reader -> 'b reader -> 'c reader -> ('a * 'b * 'c) reader
   val list: 'a reader -> 'a list reader
   val option: 'a reader -> 'a option reader
+  val error: ('a, unit, string, 'b) format4 -> 'a
 end
 
 module Writer: sig
