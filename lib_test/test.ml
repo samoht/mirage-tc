@@ -29,6 +29,11 @@ let test_equal m t =
     ~msg:"Self equality"
     (Tc.equal m t t) true
 
+let test_size_of m t =
+  OUnit.assert_equal
+    ~msg:"Self size"
+    (Tc.size_of m t) (Tc.size_of m t)
+
 let random_int i =
   Printf.printf "XXXX random_int(%d)\n" i;
   if i <= 1 then 0
@@ -98,6 +103,7 @@ let () =
       "JSON functions"    , `Quick, gen test_json;
       "Comparison"        , `Quick, gen test_compare;
       "Equalities"        , `Quick, gen test_equal;
+      "Size_of"           , `Quick, gen test_size_of;
     ]
   in
   Alcotest.run "tc" [
