@@ -237,3 +237,10 @@ module Equal: sig
   val list: 'a equal -> 'a list equal
   val option: 'a equal -> 'a option equal
 end
+
+module Size_of: sig
+  val pair: 'a size_of -> 'b size_of -> ('a * 'b) size_of
+  val triple: 'a size_of -> 'b size_of -> 'c size_of -> ('a * 'b * 'c) size_of
+  val list: 'a size_of -> 'a list size_of
+  val option: 'a size_of -> 'a option size_of
+end

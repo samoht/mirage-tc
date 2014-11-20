@@ -235,33 +235,23 @@ module Equal = struct
 
 end
 
-module I0 (S: sig type t with sexp, bin_io, compare end) = struct
+module Size_of = struct
+  let pair = Bin_prot.Size.bin_size_pair
+  let triple = Bin_prot.Size.bin_size_triple
+  let list = Bin_prot.Size.bin_size_list
+  let option = Bin_prot.Size.bin_size_option
+end
 
+module I0 (S: sig type t with sexp, bin_io, compare end) = struct
   include S
   let equal x y = compare x y = 0
   let hash = Hashtbl.hash
   let to_sexp = S.sexp_of_t
   let to_json t = Ezjsonm.of_sexp (S.sexp_of_t t)
   let of_json t = S.t_of_sexp (Ezjsonm.to_sexp t)
-
-  open Bin_prot.Type_class
-
   let size_of = bin_size_t
-
-  let read buf =
-    try
-      let pos_ref = ref 0 in
-      let buffer = Mstruct.to_bigarray buf in
-      let t = bin_t.reader.read ~pos_ref buffer in
-      Mstruct.shift buf !pos_ref;
-      t
-    with Bin_prot.Common.Read_error _ ->
-      raise Read_error
-
-  let write t ({ Cstruct.buffer; off; _ } as buf) =
-    let len = bin_t.writer.write buffer ~pos:off t in
-    Cstruct.shift buf (len - off)
-
+  let read = Reader.of_bin_prot S.bin_read_t
+  let write = Writer.of_bin_prot S.bin_write_t
 end
 
 module App1(F: I1)(X: I0) = struct
