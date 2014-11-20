@@ -19,6 +19,16 @@ let test_json m t =
     ~cmp:(Tc.equal m)
     t t'
 
+let test_compare m t =
+  OUnit.assert_equal
+    ~msg:"Self comparison"
+    (Tc.compare m t t) 0
+
+let test_equal m t =
+  OUnit.assert_equal
+    ~msg:"Self equality"
+    (Tc.equal m t t) true
+
 let random_int i =
   Printf.printf "XXXX random_int(%d)\n" i;
   if i <= 1 then 0
@@ -36,7 +46,7 @@ let random_list len gen =
 
 let string f () =
   let m = (module Tc.S: Tc.I0 with type t = string) in
-  for i = 0 to 100 do
+  for _i = 0 to 100 do
     f m (random_string 2043)
   done
 
@@ -53,6 +63,12 @@ let pair f () =
   f m (Some (), [""]);
   f m (None, []);
   f m (Some (), random_list 1024 (fun _ -> random_string 2048))
+
+let option f () =
+  let m = (module Tc.App1(Tc.O)(Tc.I): Tc.I0 with type t = int option) in
+  f m None;
+  f m (Some 1);
+  f m (Some 0)
 
 let queue f () =
   let module Q = struct
@@ -80,6 +96,8 @@ let () =
       "show functions"    , `Quick, gen test_show;
       "cstructs functions", `Quick, gen test_cstruct;
       "JSON functions"    , `Quick, gen test_json;
+      "Comparison"        , `Quick, gen test_compare;
+      "Equalities"        , `Quick, gen test_equal;
     ]
   in
   Alcotest.run "tc" [
@@ -87,4 +105,5 @@ let () =
     suite "list"   list;
     suite "pair"   pair;
     suite "queue"  queue;
+    suite "option" option;
   ]

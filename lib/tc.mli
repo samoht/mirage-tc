@@ -209,9 +209,31 @@ module AL
 module Reader: sig
   val to_bin_prot: 'a reader -> 'a Bin_prot.Read.reader
   val of_bin_prot: 'a Bin_prot.Read.reader -> 'a reader
+  val pair: 'a reader -> 'b reader -> ('a * 'b) reader
+  val triple: 'a reader -> 'b reader -> 'c reader -> ('a * 'b * 'c) reader
+  val list: 'a reader -> 'a list reader
+  val option: 'a reader -> 'a option reader
 end
 
 module Writer: sig
   val to_bin_prot: 'a writer -> 'a Bin_prot.Write.writer
   val of_bin_prot: 'a Bin_prot.Write.writer -> 'a writer
+  val pair: 'a writer -> 'b writer -> ('a * 'b) writer
+  val triple: 'a writer -> 'b writer -> 'c writer -> ('a * 'b * 'c) writer
+  val list: 'a writer -> 'a list writer
+  val option: 'a writer -> 'a option writer
+end
+
+module Compare: sig
+  val pair: 'a compare -> 'b compare -> ('a * 'b) compare
+  val triple: 'a compare -> 'b compare -> 'c compare -> ('a * 'b * 'c) compare
+  val list: 'a compare -> 'a list compare
+  val option: 'a compare -> 'a option compare
+end
+
+module Equal: sig
+  val pair: 'a equal -> 'b equal -> ('a * 'b) equal
+  val triple: 'a equal -> 'b equal -> 'c equal -> ('a * 'b * 'c) equal
+  val list: 'a equal -> 'a list equal
+  val option: 'a equal -> 'a option equal
 end

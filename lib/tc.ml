@@ -138,12 +138,15 @@ module Reader = struct
   let pair a b =
     of_bin_prot (Bin_prot.Read.bin_read_pair (to_bin_prot a) (to_bin_prot b))
 
+  let triple a b c =
+    of_bin_prot (Bin_prot.Read.bin_read_triple
+                   (to_bin_prot a) (to_bin_prot b) (to_bin_prot c))
+
   let list a =
     of_bin_prot (Bin_prot.Read.bin_read_list (to_bin_prot a))
 
-  let map f = function
-    | None  -> None
-    | Some (b, t) -> Some (b, f t)
+  let option a =
+    of_bin_prot (Bin_prot.Read.bin_read_option (to_bin_prot a))
 
 end
 
@@ -163,8 +166,15 @@ module Writer = struct
   let pair a b =
     of_bin_prot (Bin_prot.Write.bin_write_pair (to_bin_prot a) (to_bin_prot b))
 
+  let triple a b c =
+    of_bin_prot (Bin_prot.Write.bin_write_triple
+                   (to_bin_prot a) (to_bin_prot b) (to_bin_prot c))
+
   let list a =
     of_bin_prot (Bin_prot.Write.bin_write_list (to_bin_prot a))
+
+  let option a =
+    of_bin_prot (Bin_prot.Write.bin_write_option (to_bin_prot a))
 
 end
 
@@ -173,6 +183,11 @@ module Compare = struct
   let pair a b (k1, v1) (k2, v2) =
     match a k1 k2 with
     | 0 -> b v1 v2
+    | x -> x
+
+  let triple a b c (x1, x2, x3) (y1, y2, y3) =
+    match a x1 y1 with
+    | 0 -> pair b c (x2, x3) (y2, y3)
     | x -> x
 
   let list a l1 l2 =
@@ -187,6 +202,13 @@ module Compare = struct
     in
     aux l1 l2
 
+  let option a x y =
+    match x, y with
+    | Some x, Some y -> a x y
+    | Some _, None   -> 1
+    | _     , Some _ -> -1
+    | None  , None   -> 0
+
 end
 
 module Equal = struct
@@ -194,13 +216,22 @@ module Equal = struct
   let pair a b (k1, v1) (k2, v2) =
     a k1 k2 && b v1 v2
 
+  let triple a b c (x1, x2, x3) (y1, y2, y3) =
+    a x1 y1 && pair b c (x2, x3) (y2, y3)
+
   let list a l1 l2 =
     let rec aux l1 l2 = match l1, l2 with
       | [], [] -> true
       | [], _  | _, [] -> false
-      | h1::t1, h2::t2 -> a h1 h2 && aux l1 l2
+      | h1::t1, h2::t2 -> a h1 h2 && aux t1 t2
     in
     aux l1 l2
+
+  let option a x y =
+    match x, y with
+    | None, None -> true
+    | Some x, Some y -> a x y
+    | _ -> false
 
 end
 
