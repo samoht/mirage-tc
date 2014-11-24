@@ -180,6 +180,9 @@ module O1: I1 with type 'a t = 'a option
 module Pair (A: I0) (B: I0): I0 with type t = A.t * B.t
 module P2: I2 with type ('a, 'b) t = 'a * 'b
 
+module Triple (A: I0) (B: I0) (C: I0): I0 with type t = A.t * B.t * C.t
+module T3: I3 with type ('a, 'b, 'c) t = 'a * 'b * 'c
+
 module Int: I0 with type t = int
 module Int32: I0 with type t = int32
 module Int64: I0 with type t = int64

@@ -645,6 +645,9 @@ module Option (A: I0) = App1(O1)(A)
 module P2 = I2(struct type ('a, 'b) t = 'a * 'b with compare, sexp, bin_io end)
 module Pair (A: I0) (B: I0) = App2(P2)(A)(B)
 
+module T3 = I3(struct type ('a, 'b, 'c) t = 'a * 'b * 'c with compare, sexp, bin_io end)
+module Triple (A: I0) (B: I0) (C: I0) = App3(T3)(A)(B)(C)
+
 module Int = I0(struct type t = int with compare, sexp, bin_io end)
 module Int32 = I0(struct type t = int32 with compare, sexp, bin_io end)
 module Int64 = I0(struct type t = int64 with compare, sexp, bin_io end)
