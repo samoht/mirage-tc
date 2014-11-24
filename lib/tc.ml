@@ -499,7 +499,7 @@ module I3 (S: sig type ('a, 'b, 'c) t with sexp, compare, bin_io end):
 
 end
 
-module L0 (S: sig
+module As_L0 (S: sig
             type t
             module K: I0
             val to_list: t -> K.t list
@@ -534,7 +534,7 @@ struct
 
 end
 
-module L1 (S: sig
+module As_L1 (S: sig
             type 'a t
             val to_list: 'a t -> 'a list
             val of_list: 'a list -> 'a t
@@ -568,7 +568,7 @@ struct
 
 end
 
-module AL (L: sig
+module As_AL1 (L: sig
     type 'a t
     module K: I0
     val to_alist: 'a t -> (K.t * 'a) list
@@ -636,9 +636,18 @@ struct
 
 end
 
-module S = I0(struct type t = string with compare, sexp, bin_io end)
-module U = I0(struct type t = unit with compare, sexp, bin_io end)
-module O = I1(struct type 'a t = 'a option with compare, sexp, bin_io end)
-module P = I2(struct type ('a, 'b) t = 'a * 'b with compare, sexp, bin_io end)
-module I = I0(struct type t = int with compare, sexp, bin_io end)
-module L = I1(struct type 'a t = 'a list with sexp, compare, bin_io end)
+module String = I0(struct type t = string with compare, sexp, bin_io end)
+module Unit = I0(struct type t = unit with compare, sexp, bin_io end)
+
+module O1 = I1(struct type 'a t = 'a option with compare, sexp, bin_io end)
+module Option (A: I0) = App1(O1)(A)
+
+module P2 = I2(struct type ('a, 'b) t = 'a * 'b with compare, sexp, bin_io end)
+module Pair (A: I0) (B: I0) = App2(P2)(A)(B)
+
+module Int = I0(struct type t = int with compare, sexp, bin_io end)
+module Int32 = I0(struct type t = int32 with compare, sexp, bin_io end)
+module Int64 = I0(struct type t = int64 with compare, sexp, bin_io end)
+
+module L1 = I1(struct type 'a t = 'a list with sexp, compare, bin_io end)
+module List (A: I0) = App1(L1)(A)

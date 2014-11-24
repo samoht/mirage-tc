@@ -50,19 +50,19 @@ let random_list len gen =
   Array.to_list (Array.init len gen)
 
 let string f () =
-  let m = (module Tc.S: Tc.I0 with type t = string) in
+  let m = (module Tc.String: Tc.I0 with type t = string) in
   for _i = 0 to 100 do
     f m (random_string 2043)
   done
 
 let list f () =
-  let m = (module Tc.App1(Tc.L)(Tc.I): Tc.I0 with type t = int list) in
+  let m = (module Tc.List(Tc.Int): Tc.I0 with type t = int list) in
   f m [];
   f m (random_list 1024 (fun i -> random_int ((i+1)*2)))
 
 let pair f () =
   let m =
-    (module Tc.App2(Tc.P)(Tc.App1(Tc.O)(Tc.U))(Tc.App1(Tc.L)(Tc.S)):
+    (module Tc.Pair(Tc.Option(Tc.Unit))(Tc.List(Tc.String)):
       Tc.I0 with type t = unit option * string list)
   in
   f m (Some (), [""]);
@@ -70,10 +70,10 @@ let pair f () =
   f m (Some (), random_list 1024 (fun _ -> random_string 2048))
 
 let option f () =
-  let m = (module Tc.App1(Tc.O)(Tc.I): Tc.I0 with type t = int option) in
+  let m = (module Tc.Option(Tc.Int64): Tc.I0 with type t = int64 option) in
   f m None;
-  f m (Some 1);
-  f m (Some 0)
+  f m (Some 1L);
+  f m (Some 0L)
 
 let queue f () =
   let module Q = struct
@@ -85,15 +85,15 @@ let queue f () =
       let q = Queue.create () in
       List.iter (fun x -> Queue.push x q) l;
       q
-    include Tc.L1(struct
+    include Tc.As_L1(struct
         type 'a t = 'a Queue.t
         let to_list = to_list
         let of_list = of_list
       end)
   end in
-  let m = (module Tc.App1(Q)(Tc.I): Tc.I0 with type t = int Queue.t) in
+  let m = (module Tc.App1(Q)(Tc.Int32): Tc.I0 with type t = int32 Queue.t) in
   f m (Q.of_list []);
-  f m (Q.of_list (random_list 1024 (fun i -> i)))
+  f m (Q.of_list (random_list 1024 (fun i -> Int32.of_int i)))
 
 let () =
   let suite k gen =

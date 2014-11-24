@@ -171,14 +171,23 @@ module App3(F: I3)(X: I0)(Y: I0)(Z: I0): I0 with type t = (X.t, Y.t, Z.t) F.t
 
 (** {2 Useful instances} *)
 
-module S: I0 with type t = string
-module U: I0 with type t = unit
-module O: I1 with type 'a t = 'a option
-module P: I2 with type ('a, 'b) t = 'a * 'b
-module I: I0 with type t = int
-module L: I1 with type 'a t = 'a list
+module String: I0 with type t = string
+module Unit: I0 with type t = unit
 
-module L0
+module Option (A: I0): I0 with type t = A.t option
+module O1: I1 with type 'a t = 'a option
+
+module Pair (A: I0) (B: I0): I0 with type t = A.t * B.t
+module P2: I2 with type ('a, 'b) t = 'a * 'b
+
+module Int: I0 with type t = int
+module Int32: I0 with type t = int32
+module Int64: I0 with type t = int64
+
+module List (A: I0): I0 with type t = A.t list
+module L1: I1 with type 'a t = 'a list
+
+module As_L0
   (S: sig
      type t
      module K: I0
@@ -187,7 +196,7 @@ module L0
    end): I0 with type t := S.t
 (** Manorphic list -like. *)
 
-module L1
+module As_L1
     (S: sig
        type 'a t
        val to_list: 'a t -> 'a list
@@ -195,7 +204,7 @@ module L1
      end): I1 with type 'a t := 'a S.t
 (** Polymorphic list -like. *)
 
-module AL
+module As_AL1
     (S: sig
        type 'a t
        module K: I0
