@@ -41,4 +41,4 @@ true: annot, bin_annot
 # OASIS_STOP
 <lib/*.ml{,i}>: pkg_sexplib.syntax, pkg_bin_prot.syntax, pkg_comparelib.syntax
 true: debug, bin_annot
-true: warn_error_A, warn(A-4-41-44)
+true: warn(A-4-41-44)
