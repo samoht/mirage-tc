@@ -139,6 +139,7 @@ val int: int t
 val int32: int32 t
 val int64: int64 t
 val string: string t
+val bool: bool t
 
 val equal: 'a t -> 'a equal
 val compare: 'a t -> 'a compare
@@ -220,6 +221,7 @@ module App3(F: S3)(X: S0)(Y: S0)(Z: S0): S0 with type t = (X.t, Y.t, Z.t) F.t
 
 (** {1 Useful instances} *)
 
+module Bool: S0 with type t = bool
 module String: S0 with type t = string
 module Unit: S0 with type t = unit
 

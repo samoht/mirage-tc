@@ -762,6 +762,16 @@ end)
 
 module List (A: S0) = App1(L1)(A)
 
+module Bool = S0(struct
+    type t = bool
+    let compare = Pervasives.compare
+    let sexp_of_t = Sexplib.Conv.sexp_of_bool
+    let t_of_sexp = Sexplib.Conv.bool_of_sexp
+    let bin_size_t = Bin_prot.Size.bin_size_bool
+    let bin_write_t = Bin_prot.Write.bin_write_bool
+    let bin_read_t = Bin_prot.Read.bin_read_bool
+  end)
+
 let list (type a) (module A: S0 with type t = a) =
   let module L = List(A) in
   (module L: S0 with type t = a list)
@@ -785,6 +795,7 @@ let triple (type a) (type b) (type c)
   let module T = Triple(A)(B)(C) in
   (module T: S0 with type t = a * b * c)
 
+let bool = (module Bool: S0 with type t = bool)
 let unit = (module Unit: S0 with type t = unit)
 let int = (module Int: S0 with type t = int)
 let int32 = (module Int32: S0 with type t = int32)

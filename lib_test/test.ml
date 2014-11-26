@@ -49,6 +49,8 @@ let random_string len =
 let random_list len gen =
   Array.to_list (Array.init len gen)
 
+let random_bool () = Random.int 2 = 0
+
 let string f () =
   let m = Tc.string in
   for _i = 0 to 100 do
@@ -61,10 +63,10 @@ let list f () =
   f m (random_list 1024 (fun i -> random_int ((i+1)*2)))
 
 let pair f () =
-  let m = Tc.(pair (option unit) (list string)) in
-  f m (Some (), [""]);
-  f m (None, []);
-  f m (Some (), random_list 1024 (fun _ -> random_string 2048))
+  let m = Tc.(pair (option unit) (pair (list string) bool)) in
+  f m (Some (), ([""], false));
+  f m (None, ([], true));
+  f m (Some (), (random_list 1024 (fun _ -> random_string 2048), random_bool ()))
 
 let option f () =
   let m = Tc.option Tc.int64 in
