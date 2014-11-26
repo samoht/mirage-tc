@@ -14,9 +14,6 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *)
 
-open Bin_prot.Std
-open Sexplib.Std
-
 exception Read_error of string
 
 type 'a equal = 'a -> 'a -> bool
@@ -29,7 +26,7 @@ type 'a writer = 'a -> Cstruct.t -> Cstruct.t
 type 'a to_json = 'a -> Ezjsonm.t
 type 'a of_json = Ezjsonm.t -> 'a
 
-module type I0 = sig
+module type S0 = sig
   type t
   val equal: t equal
   val compare: t compare
@@ -42,7 +39,9 @@ module type I0 = sig
   val read: t reader
 end
 
-module type I1 = sig
+type 'a t = (module S0 with type t = 'a)
+
+module type S1 = sig
   type 'a t
   val equal: 'a equal -> 'a t equal
   val compare: 'a compare -> 'a t compare
@@ -55,7 +54,7 @@ module type I1 = sig
   val read: 'a reader -> 'a t reader
 end
 
-module type I2 = sig
+module type S2 = sig
   type ('a, 'b) t
   val equal: 'a equal -> 'b equal -> ('a, 'b) t equal
   val compare: 'a compare -> 'b compare -> ('a, 'b) t compare
@@ -68,7 +67,7 @@ module type I2 = sig
   val read: 'a reader -> 'b reader -> ('a, 'b) t reader
 end
 
-module type I3 = sig
+module type S3 = sig
   type ('a, 'b, 'c) t
   val equal: 'a equal -> 'b equal -> 'c equal -> ('a, 'b, 'c) t equal
   val compare: 'a compare -> 'b compare -> 'c compare -> ('a, 'b, 'c) t compare
@@ -82,27 +81,27 @@ module type I3 = sig
 end
 
 
-let equal (type t) (module S: I0 with type t = t) = S.equal
-let compare (type t) (module S: I0 with type t = t) = S.compare
-let hash (type t) (module S: I0 with type t = t) = S.hash
-let to_sexp (type t) (module S: I0 with type t = t) = S.to_sexp
-let to_json (type t) (module S: I0 with type t = t) = S.to_json
-let of_json (type t) (module S: I0 with type t = t) = S.of_json
-let size_of (type t) (module S: I0 with type t = t) = S.size_of
-let write (type t) (module S: I0 with type t = t) = S.write
-let read (type t) (module S: I0 with type t = t) = S.read
+let equal (type t) (module S: S0 with type t = t) = S.equal
+let compare (type t) (module S: S0 with type t = t) = S.compare
+let hash (type t) (module S: S0 with type t = t) = S.hash
+let to_sexp (type t) (module S: S0 with type t = t) = S.to_sexp
+let to_json (type t) (module S: S0 with type t = t) = S.to_json
+let of_json (type t) (module S: S0 with type t = t) = S.of_json
+let size_of (type t) (module S: S0 with type t = t) = S.size_of
+let write (type t) (module S: S0 with type t = t) = S.write
+let read (type t) (module S: S0 with type t = t) = S.read
 
-let show (type t) (module S: I0 with type t = t) t =
+let show (type t) (module S: S0 with type t = t) t =
   Sexplib.Sexp.to_string_hum (S.to_sexp t)
 
-let shows (type t) (module S: I0 with type t = t) xs =
+let shows (type t) (module S: S0 with type t = t) xs =
   List.map S.to_sexp xs
   |> fun l -> Sexplib.Sexp.to_string_hum (Sexplib.Sexp.List l)
 
-let read_cstruct (type t) (module S: I0 with type t = t) buf =
+let read_cstruct (type t) (module S: S0 with type t = t) buf =
   S.read (Mstruct.of_cstruct buf)
 
-let write_cstruct (type t) (module S: I0 with type t = t) t =
+let write_cstruct (type t) (module S: S0 with type t = t) t =
   let buf = Cstruct.create (S.size_of t) in
   let (_: Cstruct.t) = S.write t buf in
   (* XXX: assert len = 0 *)
@@ -245,7 +244,18 @@ module Size_of = struct
   let option = Bin_prot.Size.bin_size_option
 end
 
-module I0 (S: sig type t with sexp, bin_io, compare end) = struct
+type 'a of_sexp = Sexplib.Type.t -> 'a
+
+module S0 (S: sig
+             type t
+             val sexp_of_t: t to_sexp
+             val t_of_sexp: t of_sexp
+             val compare: t compare
+             val bin_size_t: t Bin_prot.Size.sizer
+             val bin_write_t: t Bin_prot.Write.writer
+             val bin_read_t: t Bin_prot.Read.reader
+           end) =
+struct
   include S
   let equal x y = compare x y = 0
   let hash = Hashtbl.hash
@@ -257,7 +267,7 @@ module I0 (S: sig type t with sexp, bin_io, compare end) = struct
   let write = Writer.of_bin_prot S.bin_write_t
 end
 
-module App1(F: I1)(X: I0) = struct
+module App1(F: S1)(X: S0) = struct
   type t = X.t F.t
   let equal = F.equal X.equal
   let compare = F.compare X.compare
@@ -272,9 +282,16 @@ end
 
 let max_rand = 1073741823 (* 2 ** 30 - 1 *)
 
-module I1 (S: sig type 'a t with sexp, compare, bin_io end):
-  I1 with type 'a t = 'a S.t
-= struct
+module S1 (S: sig
+             type 'a t
+             val sexp_of_t: 'a to_sexp -> 'a t to_sexp
+             val t_of_sexp: 'a of_sexp -> 'a t of_sexp
+             val compare: 'a compare -> 'a t compare
+             val bin_size_t: ('a, 'a t) Bin_prot.Size.sizer1
+             val bin_write_t: ('a, 'a t) Bin_prot.Write.writer1
+             val bin_read_t: ('a, 'a t) Bin_prot.Read.reader1
+           end) =
+struct
 
   include S
 
@@ -328,7 +345,7 @@ module I1 (S: sig type 'a t with sexp, compare, bin_io end):
 
 end
 
-module App2(F: I2)(X: I0)(Y: I0) = struct
+module App2(F: S2)(X: S0)(Y: S0) = struct
   type t = (X.t, Y.t) F.t
   let equal = F.equal X.equal Y.equal
   let compare = F.compare X.compare Y.compare
@@ -341,9 +358,16 @@ module App2(F: I2)(X: I0)(Y: I0) = struct
   let read = F.read X.read Y.read
 end
 
-module I2 (S: sig type ('a, 'b) t with sexp, compare, bin_io end):
-  I2 with type ('a, 'b) t = ('a, 'b) S.t
-= struct
+module S2 (S: sig
+             type ('a, 'b) t
+             val sexp_of_t: 'a to_sexp -> 'b to_sexp -> ('a, 'b) t to_sexp
+             val t_of_sexp: 'a of_sexp -> 'b of_sexp -> ('a, 'b) t of_sexp
+             val compare: 'a compare -> 'b compare -> ('a, 'b) t compare
+             val bin_size_t: ('a, 'b, ('a, 'b) t) Bin_prot.Size.sizer2
+             val bin_write_t: ('a, 'b, ('a, 'b) t) Bin_prot.Write.writer2
+             val bin_read_t: ('a, 'b, ('a, 'b) t) Bin_prot.Read.reader2
+           end) =
+struct
 
   include S
 
@@ -408,7 +432,7 @@ module I2 (S: sig type ('a, 'b) t with sexp, compare, bin_io end):
 
 end
 
-module App3(F: I3)(X: I0)(Y: I0)(Z: I0) = struct
+module App3(F: S3)(X: S0)(Y: S0)(Z: S0) = struct
   type t = (X.t, Y.t, Z.t) F.t
   let equal = F.equal X.equal Y.equal Z.equal
   let compare = F.compare X.compare Y.compare Z.compare
@@ -421,8 +445,15 @@ module App3(F: I3)(X: I0)(Y: I0)(Z: I0) = struct
   let read = F.read X.read Y.read Z.read
 end
 
-module I3 (S: sig type ('a, 'b, 'c) t with sexp, compare, bin_io end):
-  I3 with type ('a, 'b, 'c) t = ('a, 'b, 'c) S.t
+module S3 (S: sig
+             type ('a, 'b, 'c) t
+             val sexp_of_t: 'a to_sexp -> 'b to_sexp -> 'c to_sexp -> ('a, 'b, 'c) t to_sexp
+             val t_of_sexp: 'a of_sexp -> 'b of_sexp -> 'c of_sexp -> ('a, 'b, 'c) t of_sexp
+             val compare: 'a compare -> 'b compare -> 'c compare -> ('a, 'b, 'c) t compare
+             val bin_size_t: ('a, 'b, 'c, ('a, 'b, 'c) t) Bin_prot.Size.sizer3
+             val bin_write_t: ('a, 'b, 'c, ('a, 'b, 'c) t) Bin_prot.Write.writer3
+             val bin_read_t: ('a, 'b, 'c, ('a, 'b, 'c) t) Bin_prot.Read.reader3
+           end)
 = struct
 
   include S
@@ -501,7 +532,7 @@ end
 
 module As_L0 (S: sig
             type t
-            module K: I0
+            module K: S0
             val to_list: t -> K.t list
             val of_list: K.t list -> t
           end) =
@@ -570,7 +601,7 @@ end
 
 module As_AL1 (L: sig
     type 'a t
-    module K: I0
+    module K: S0
     val to_alist: 'a t -> (K.t * 'a) list
     val of_alist: (K.t * 'a) list -> 'a t
   end) =
@@ -636,21 +667,126 @@ struct
 
 end
 
-module String = I0(struct type t = string with compare, sexp, bin_io end)
-module Unit = I0(struct type t = unit with compare, sexp, bin_io end)
+module String = S0(struct
+    type t = string
+    let compare = String.compare
+    let sexp_of_t = Sexplib.Conv.sexp_of_string
+    let t_of_sexp = Sexplib.Conv.string_of_sexp
+    let bin_size_t = Bin_prot.Size.bin_size_string
+    let bin_write_t = Bin_prot.Write.bin_write_string
+    let bin_read_t = Bin_prot.Read.bin_read_string
+  end)
 
-module O1 = I1(struct type 'a t = 'a option with compare, sexp, bin_io end)
-module Option (A: I0) = App1(O1)(A)
+module Unit = S0(struct
+    type t = unit
+    let compare _ _ = 0
+    let sexp_of_t = Sexplib.Conv.sexp_of_unit
+    let t_of_sexp = Sexplib.Conv.unit_of_sexp
+    let bin_size_t = Bin_prot.Size.bin_size_unit
+    let bin_write_t = Bin_prot.Write.bin_write_unit
+    let bin_read_t = Bin_prot.Read.bin_read_unit
+  end)
 
-module P2 = I2(struct type ('a, 'b) t = 'a * 'b with compare, sexp, bin_io end)
-module Pair (A: I0) (B: I0) = App2(P2)(A)(B)
+module O1 = S1(struct
+    type 'a t = 'a option
+    let compare = Compare.option
+    let sexp_of_t = Sexplib.Conv.sexp_of_option
+    let t_of_sexp = Sexplib.Conv.option_of_sexp
+    let bin_size_t = Bin_prot.Size.bin_size_option
+    let bin_write_t = Bin_prot.Write.bin_write_option
+    let bin_read_t = Bin_prot.Read.bin_read_option
+end)
+module Option (A: S0) = App1(O1)(A)
 
-module T3 = I3(struct type ('a, 'b, 'c) t = 'a * 'b * 'c with compare, sexp, bin_io end)
-module Triple (A: I0) (B: I0) (C: I0) = App3(T3)(A)(B)(C)
+module P2 = S2(struct
+    type ('a, 'b) t = 'a * 'b
+    let compare = Compare.pair
+    let sexp_of_t = Sexplib.Conv.sexp_of_pair
+    let t_of_sexp = Sexplib.Conv.pair_of_sexp
+    let bin_size_t = Bin_prot.Size.bin_size_pair
+    let bin_write_t = Bin_prot.Write.bin_write_pair
+    let bin_read_t = Bin_prot.Read.bin_read_pair
+  end)
+module Pair (A: S0) (B: S0) = App2(P2)(A)(B)
 
-module Int = I0(struct type t = int with compare, sexp, bin_io end)
-module Int32 = I0(struct type t = int32 with compare, sexp, bin_io end)
-module Int64 = I0(struct type t = int64 with compare, sexp, bin_io end)
+module T3 = S3(struct
+    type ('a, 'b, 'c) t = 'a * 'b * 'c
+    let compare = Compare.triple
+    let sexp_of_t = Sexplib.Conv.sexp_of_triple
+    let t_of_sexp = Sexplib.Conv.triple_of_sexp
+    let bin_size_t = Bin_prot.Size.bin_size_triple
+    let bin_write_t = Bin_prot.Write.bin_write_triple
+    let bin_read_t = Bin_prot.Read.bin_read_triple
+  end)
+module Triple (A: S0) (B: S0) (C: S0) = App3(T3)(A)(B)(C)
 
-module L1 = I1(struct type 'a t = 'a list with sexp, compare, bin_io end)
-module List (A: I0) = App1(L1)(A)
+module Int = S0(struct
+    type t = int
+    let compare = Pervasives.compare
+    let sexp_of_t = Sexplib.Conv.sexp_of_int
+    let t_of_sexp = Sexplib.Conv.int_of_sexp
+    let bin_size_t = Bin_prot.Size.bin_size_int
+    let bin_write_t = Bin_prot.Write.bin_write_int
+    let bin_read_t = Bin_prot.Read.bin_read_int
+  end)
+
+module Int32 = S0(struct
+    type t = int32
+    let compare = Int32.compare
+    let sexp_of_t = Sexplib.Conv.sexp_of_int32
+    let t_of_sexp = Sexplib.Conv.int32_of_sexp
+    let bin_size_t = Bin_prot.Size.bin_size_int32
+    let bin_write_t = Bin_prot.Write.bin_write_int32
+    let bin_read_t = Bin_prot.Read.bin_read_int32
+end)
+
+module Int64 = S0(struct
+    type t = int64
+    let compare = Int64.compare
+    let sexp_of_t = Sexplib.Conv.sexp_of_int64
+    let t_of_sexp = Sexplib.Conv.int64_of_sexp
+    let bin_size_t = Bin_prot.Size.bin_size_int64
+    let bin_write_t = Bin_prot.Write.bin_write_int64
+    let bin_read_t = Bin_prot.Read.bin_read_int64
+end)
+
+module L1 = S1(struct
+    type 'a t = 'a list
+    let compare = Compare.list
+    let sexp_of_t = Sexplib.Conv.sexp_of_list
+    let t_of_sexp = Sexplib.Conv.list_of_sexp
+    let bin_size_t = Bin_prot.Size.bin_size_list
+    let bin_write_t = Bin_prot.Write.bin_write_list
+    let bin_read_t = Bin_prot.Read.bin_read_list
+end)
+
+module List (A: S0) = App1(L1)(A)
+
+let list (type a) (module A: S0 with type t = a) =
+  let module L = List(A) in
+  (module L: S0 with type t = a list)
+
+let option (type a) (module A: S0 with type t = a) =
+  let module O = Option(A) in
+  (module O: S0 with type t = a option)
+
+let pair (type a) (type b)
+    (module A: S0 with type t = a)
+    (module B: S0 with type t = b)
+  =
+  let module P = Pair(A)(B) in
+  (module P: S0 with type t = a * b)
+
+let triple (type a) (type b) (type c)
+    (module A: S0 with type t = a)
+    (module B: S0 with type t = b)
+    (module C: S0 with type t = c)
+  =
+  let module T = Triple(A)(B)(C) in
+  (module T: S0 with type t = a * b * c)
+
+let unit = (module Unit: S0 with type t = unit)
+let int = (module Int: S0 with type t = int)
+let int32 = (module Int32: S0 with type t = int32)
+let int64 = (module Int64: S0 with type t = int64)
+let string = (module String: S0 with type t = string)

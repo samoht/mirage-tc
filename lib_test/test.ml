@@ -50,27 +50,24 @@ let random_list len gen =
   Array.to_list (Array.init len gen)
 
 let string f () =
-  let m = (module Tc.String: Tc.I0 with type t = string) in
+  let m = Tc.string in
   for _i = 0 to 100 do
     f m (random_string 2043)
   done
 
 let list f () =
-  let m = (module Tc.List(Tc.Int): Tc.I0 with type t = int list) in
+  let m = Tc.list Tc.int in
   f m [];
   f m (random_list 1024 (fun i -> random_int ((i+1)*2)))
 
 let pair f () =
-  let m =
-    (module Tc.Pair(Tc.Option(Tc.Unit))(Tc.List(Tc.String)):
-      Tc.I0 with type t = unit option * string list)
-  in
+  let m = Tc.(pair (option unit) (list string)) in
   f m (Some (), [""]);
   f m (None, []);
   f m (Some (), random_list 1024 (fun _ -> random_string 2048))
 
 let option f () =
-  let m = (module Tc.Option(Tc.Int64): Tc.I0 with type t = int64 option) in
+  let m = Tc.option Tc.int64 in
   f m None;
   f m (Some 1L);
   f m (Some 0L)
@@ -91,7 +88,7 @@ let queue f () =
         let of_list = of_list
       end)
   end in
-  let m = (module Tc.App1(Q)(Tc.Int32): Tc.I0 with type t = int32 Queue.t) in
+  let m = (module Tc.App1(Q)(Tc.Int32): Tc.S0 with type t = int32 Queue.t) in
   f m (Q.of_list []);
   f m (Q.of_list (random_list 1024 (fun i -> Int32.of_int i)))
 

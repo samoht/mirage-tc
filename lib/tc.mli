@@ -46,7 +46,7 @@ type 'a to_json = 'a -> Ezjsonm.t
 type 'a of_json = Ezjsonm.t -> 'a
 
 (** Abstract Identifiers. *)
-module type I0 = sig
+module type S0 = sig
   type t
   val equal: t equal
   val compare: t compare
@@ -66,7 +66,7 @@ module type I0 = sig
 end
 
 (** Abstract identifiers with one polymorphic parameter. *)
-module type I1 = sig
+module type S1 = sig
   type 'a t
   val equal: 'a equal -> 'a t equal
   val compare: 'a compare -> 'a t compare
@@ -86,7 +86,7 @@ module type I1 = sig
 end
 
 (** Abstract identifiers with two polymorphic parameters. *)
-module type I2 = sig
+module type S2 = sig
   type ('a, 'b) t
   val equal: 'a equal -> 'b equal -> ('a, 'b) t equal
   val compare: 'a compare -> 'b compare -> ('a, 'b) t compare
@@ -106,7 +106,7 @@ module type I2 = sig
 end
 
 (** Abstract identifiers with two polymorphic parameters. *)
-module type I3 = sig
+module type S3 = sig
   type ('a, 'b, 'c) t
   val equal: 'a equal -> 'b equal -> 'c equal -> ('a, 'b, 'c) t equal
   val compare: 'a compare -> 'b compare -> 'c compare -> ('a, 'b, 'c) t compare
@@ -125,78 +125,127 @@ module type I3 = sig
   val read: 'a reader -> 'b reader -> 'c reader -> ('a, 'b, 'c) t reader
 end
 
-(** {2 Accessors} *)
+(** {1 Combinators} *)
 
-val equal: (module I0 with type t = 'a) -> 'a equal
-val compare: (module I0 with type t = 'a) -> 'a compare
-val hash: (module I0 with type t = 'a) -> 'a hash
-val to_sexp: (module I0 with type t = 'a) -> 'a to_sexp
-val to_json: (module I0 with type t = 'a) -> 'a to_json
-val of_json: (module I0 with type t = 'a) -> 'a of_json
-val size_of: (module I0 with type t = 'a) -> 'a size_of
-val write: (module I0 with type t = 'a) -> 'a writer
-val read: (module I0 with type t = 'a) -> 'a reader
-val show: (module I0 with type t = 'a) -> 'a -> string
-val shows: (module I0 with type t = 'a) -> 'a list -> string
-val read_string: (module I0 with type t = 'a) -> string -> 'a
-val read_cstruct: (module I0 with type t = 'a) -> Cstruct.t -> 'a
-val write_string: (module I0 with type t = 'a) -> 'a -> string
-val write_cstruct: (module I0 with type t = 'a) -> 'a -> Cstruct.t
+type 'a t = (module S0 with type t = 'a)
+(** The type-class of values of type ['a]. *)
 
-(** {2 Builders} *)
+val list: 'a t -> 'a list t
+val option: 'a t -> 'a option t
+val pair: 'a t -> 'b t -> ('a * 'b) t
+val triple: 'a t -> 'b t -> 'c t -> ('a * 'b * 'c) t
+val unit: unit t
+val int: int t
+val int32: int32 t
+val int64: int64 t
+val string: string t
+
+val equal: 'a t -> 'a equal
+val compare: 'a t -> 'a compare
+val hash: 'a t -> 'a hash
+val to_sexp: 'a t -> 'a to_sexp
+val to_json: 'a t -> 'a to_json
+val of_json: 'a t -> 'a of_json
+val size_of: 'a t -> 'a size_of
+val write: 'a t -> 'a writer
+val read: 'a t -> 'a reader
+val show: 'a t -> 'a -> string
+val shows: 'a t -> 'a list -> string
+val read_string: 'a t -> string -> 'a
+val read_cstruct: 'a t -> Cstruct.t -> 'a
+val write_string: 'a t -> 'a -> string
+val write_cstruct: 'a t -> 'a -> Cstruct.t
+
+(** {1 Builders} *)
+
+type 'a of_sexp = Sexplib.Type.t -> 'a
+(** Type helper. *)
 
 (** Build abstract identifiers. *)
-module I0 (S: sig type t with sexp, bin_io, compare end): I0 with type t = S.t
+module S0 (S: sig
+             type t
+             val sexp_of_t: t to_sexp
+             val t_of_sexp: t of_sexp
+             val compare: t compare
+             val bin_size_t: t Bin_prot.Size.sizer
+             val bin_write_t: t Bin_prot.Write.writer
+             val bin_read_t: t Bin_prot.Read.reader
+           end):
+  S0 with type t = S.t
 
 (** Build abstract identifiers with a polymorphic parameters. *)
-module I1 (S: sig type 'a t with sexp, compare, bin_io end):
-  I1 with type 'a t = 'a S.t
+module S1 (S: sig
+             type 'a t
+             val sexp_of_t: 'a to_sexp -> 'a t to_sexp
+             val t_of_sexp: 'a of_sexp -> 'a t of_sexp
+             val compare: 'a compare -> 'a t compare
+             val bin_size_t: ('a, 'a t) Bin_prot.Size.sizer1
+             val bin_write_t: ('a, 'a t) Bin_prot.Write.writer1
+             val bin_read_t: ('a, 'a t) Bin_prot.Read.reader1
+           end):
+  S1 with type 'a t = 'a S.t
+
+(** Build abstract identfiers with two polymorphic parameters. *)
+module S2 (S: sig
+             type ('a, 'b) t
+             val sexp_of_t: 'a to_sexp -> 'b to_sexp -> ('a, 'b) t to_sexp
+             val t_of_sexp: 'a of_sexp -> 'b of_sexp -> ('a, 'b) t of_sexp
+             val compare: 'a compare -> 'b compare -> ('a, 'b) t compare
+             val bin_size_t: ('a, 'b, ('a, 'b) t) Bin_prot.Size.sizer2
+             val bin_write_t: ('a, 'b, ('a, 'b) t) Bin_prot.Write.writer2
+             val bin_read_t: ('a, 'b, ('a, 'b) t) Bin_prot.Read.reader2
+           end):
+  S2 with type ('a, 'b) t = ('a, 'b) S.t
+
+(** Build abstract identfiers with three polymorphic parameters. *)
+module S3 (S: sig
+             type ('a, 'b, 'c) t
+             val sexp_of_t: 'a to_sexp -> 'b to_sexp -> 'c to_sexp -> ('a, 'b, 'c) t to_sexp
+             val t_of_sexp: 'a of_sexp -> 'b of_sexp -> 'c of_sexp -> ('a, 'b, 'c) t of_sexp
+             val compare: 'a compare -> 'b compare -> 'c compare -> ('a, 'b, 'c) t compare
+             val bin_size_t: ('a, 'b, 'c, ('a, 'b, 'c) t) Bin_prot.Size.sizer3
+             val bin_write_t: ('a, 'b, 'c, ('a, 'b, 'c) t) Bin_prot.Write.writer3
+             val bin_read_t: ('a, 'b, 'c, ('a, 'b, 'c) t) Bin_prot.Read.reader3
+           end):
+  S3 with type ('a, 'b, 'c) t = ('a, 'b, 'c) S.t
 
 (** Monorphize a type with one parameter. *)
-module App1 (F: I1)(X: I0): I0 with type t = X.t F.t
-
-(** Build abstract identfiers with two polymorphic parameters. *)
-module I2 (S: sig type ('a, 'b) t with sexp, compare, bin_io end):
-  I2 with type ('a, 'b) t = ('a, 'b) S.t
+module App1 (F: S1)(X: S0): S0 with type t = X.t F.t
 
 (** Monorphize a type with two parameters. *)
-module App2(F: I2)(X: I0)(Y: I0): I0 with type t = (X.t, Y.t) F.t
-
-(** Build abstract identfiers with two polymorphic parameters. *)
-module I3 (S: sig type ('a, 'b, 'c) t with sexp, compare, bin_io end):
-  I3 with type ('a, 'b, 'c) t = ('a, 'b, 'c) S.t
+module App2(F: S2)(X: S0)(Y: S0): S0 with type t = (X.t, Y.t) F.t
 
 (** Monorphize a type with three parameters. *)
-module App3(F: I3)(X: I0)(Y: I0)(Z: I0): I0 with type t = (X.t, Y.t, Z.t) F.t
+module App3(F: S3)(X: S0)(Y: S0)(Z: S0): S0 with type t = (X.t, Y.t, Z.t) F.t
 
-(** {2 Useful instances} *)
+(** {1 Useful instances} *)
 
-module String: I0 with type t = string
-module Unit: I0 with type t = unit
+module String: S0 with type t = string
+module Unit: S0 with type t = unit
 
-module Option (A: I0): I0 with type t = A.t option
-module O1: I1 with type 'a t = 'a option
+module Option (A: S0): S0 with type t = A.t option
+module O1: S1 with type 'a t = 'a option
 
-module Pair (A: I0) (B: I0): I0 with type t = A.t * B.t
-module P2: I2 with type ('a, 'b) t = 'a * 'b
+module Pair (A: S0) (B: S0): S0 with type t = A.t * B.t
+module P2: S2 with type ('a, 'b) t = 'a * 'b
 
-module Triple (A: I0) (B: I0) (C: I0): I0 with type t = A.t * B.t * C.t
-module T3: I3 with type ('a, 'b, 'c) t = 'a * 'b * 'c
+module Triple (A: S0) (B: S0) (C: S0): S0 with type t = A.t * B.t * C.t
+module T3: S3 with type ('a, 'b, 'c) t = 'a * 'b * 'c
 
-module Int: I0 with type t = int
-module Int32: I0 with type t = int32
-module Int64: I0 with type t = int64
+module Int: S0 with type t = int
+module Int32: S0 with type t = int32
+module Int64: S0 with type t = int64
 
-module List (A: I0): I0 with type t = A.t list
-module L1: I1 with type 'a t = 'a list
+module List (A: S0): S0 with type t = A.t list
+module L1: S1 with type 'a t = 'a list
 
 module As_L0
   (S: sig
      type t
-     module K: I0
+     module K: S0
      val to_list: t -> K.t list
      val of_list: K.t list -> t
-   end): I0 with type t := S.t
+   end): S0 with type t := S.t
 (** Manorphic list -like. *)
 
 module As_L1
@@ -204,19 +253,19 @@ module As_L1
        type 'a t
        val to_list: 'a t -> 'a list
        val of_list: 'a list -> 'a t
-     end): I1 with type 'a t := 'a S.t
+     end): S1 with type 'a t := 'a S.t
 (** Polymorphic list -like. *)
 
 module As_AL1
     (S: sig
        type 'a t
-       module K: I0
+       module K: S0
        val to_alist: 'a t -> (K.t * 'a) list
        val of_alist: (K.t * 'a) list -> 'a t
-     end): I1 with type 'a t := 'a S.t
+     end): S1 with type 'a t := 'a S.t
 (** Association list -like. *)
 
-(** {2 Helpers} *)
+(** {1 Helpers} *)
 
 module Reader: sig
   val to_bin_prot: 'a reader -> 'a Bin_prot.Read.reader

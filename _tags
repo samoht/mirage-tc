@@ -39,6 +39,5 @@ true: annot, bin_annot
 <lib_test/*.ml{,i,y}>: pkg_sexplib
 <lib_test/*.ml{,i,y}>: use_tc
 # OASIS_STOP
-<lib/*.ml{,i}>: pkg_sexplib.syntax, pkg_bin_prot.syntax, pkg_comparelib.syntax
 true: debug, bin_annot
 true: warn(A-4-41-44)
