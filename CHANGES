@@ -1,4 +1,4 @@
-0.2.0 (trunk)
+## 0.2.0 (2014-12-04)
 - Add bool base type-classes
 - Rename I0, I1, I2, I3 to S0, S1, S2 and S3
 - Expose value combinators (to mirror the functor combinators)
@@ -9,5 +9,5 @@
 - Add base combinators for all the type-classes
 - Expose Reader.parse_error
 
-0.1.0 (2014-10-26)
+## 0.1.0 (2014-10-26)
 - Initial release
