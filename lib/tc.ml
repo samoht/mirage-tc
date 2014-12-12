@@ -549,7 +549,10 @@ struct
     in
     aux (S.to_list t1) (S.to_list t2)
 
-  let equal t1 t2 = List.for_all2 S.K.equal (S.to_list t1) (S.to_list t2)
+  let equal t1 t2 =
+    let l1 = S.to_list t1 in
+    let l2 = S.to_list t2 in
+    List.length l1 = List.length l2 && List.for_all2 S.K.equal l1 l2
   let hash = Hashtbl.hash
   let to_sexp t = Sexplib.Conv.sexp_of_list S.K.to_sexp (S.to_list t)
   let to_json t = Ezjsonm.list S.K.to_json (S.to_list t)
@@ -583,7 +586,10 @@ struct
     in
     aux (S.to_list t1) (S.to_list t2)
 
-  let equal equal_a t1 t2 = List.for_all2 equal_a (S.to_list t1) (S.to_list t2)
+  let equal equal_a t1 t2 =
+    let l1 = S.to_list t1 in
+    let l2 = S.to_list t2 in
+    List.length l1 = List.length l2 && List.for_all2 equal_a l1 l2
   let hash _ = Hashtbl.hash
   let to_sexp to_sexp_a t = Sexplib.Conv.sexp_of_list to_sexp_a (S.to_list t)
   let to_json to_json_a t = Ezjsonm.list to_json_a (S.to_list t)
@@ -663,7 +669,7 @@ struct
     let l1 = List.sort compare (L.to_alist t1) in
     let l2 = List.sort compare (L.to_alist t2) in
     let f (k1, v1) (k2, v2) = L.K.equal k1 k2 && equal_a v1 v2 in
-    List.for_all2 f l1 l2
+    List.length l1 = List.length l2 && List.for_all2 f l1 l2
 
 end
 
