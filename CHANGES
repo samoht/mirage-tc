@@ -1,5 +1,7 @@
-## 0.2.1 (2014-12-12)
-- Fix Tc.equal for lists
+## 0.2.1
+- Report more useful errors on binary parse errors
+- Add cstructs combinators
+- Fix Tc.List.equal
 
 ## 0.2.0 (2014-12-04)
 - Add bool base type-classes
