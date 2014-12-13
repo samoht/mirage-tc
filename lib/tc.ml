@@ -131,8 +131,12 @@ module Reader = struct
         let t = bin_read_t buffer ~pos_ref in
         Mstruct.shift buf !pos_ref;
         t
-      with Bin_prot.Common.Read_error _ ->
-        raise (Read_error "of_bin_prot")
+      with Bin_prot.Common.Read_error (e, p) ->
+        let msg =
+          Printf.sprintf "of_bin_prot[%d]: %s"
+            p (Bin_prot.Common.ReadError.to_string e)
+        in
+        raise (Read_error msg)
 
   let pair a b =
     of_bin_prot (Bin_prot.Read.bin_read_pair (to_bin_prot a) (to_bin_prot b))
