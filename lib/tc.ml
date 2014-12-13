@@ -687,6 +687,18 @@ module String = S0(struct
     let bin_read_t = Bin_prot.Read.bin_read_string
   end)
 
+module Cstruct = S0(struct
+    type t = Cstruct.t
+    let compare = Pervasives.compare
+    let sexp_of_t t = Sexplib.Conv.sexp_of_bigstring t.Cstruct.buffer
+    let t_of_sexp s = Cstruct.of_bigarray (Sexplib.Conv.bigstring_of_sexp s)
+    let bin_size_t t = Bin_prot.Size.bin_size_bigstring t.Cstruct.buffer
+    let bin_write_t b ~pos t =
+      Bin_prot.Write.bin_write_bigstring b ~pos t.Cstruct.buffer
+    let bin_read_t b ~pos_ref =
+      Cstruct.of_bigarray (Bin_prot.Read.bin_read_bigstring b ~pos_ref)
+end)
+
 module Unit = S0(struct
     type t = unit
     let compare _ _ = 0
@@ -811,3 +823,4 @@ let int = (module Int: S0 with type t = int)
 let int32 = (module Int32: S0 with type t = int32)
 let int64 = (module Int64: S0 with type t = int64)
 let string = (module String: S0 with type t = string)
+let cstruct = (module Cstruct: S0 with type t = Cstruct.t)
