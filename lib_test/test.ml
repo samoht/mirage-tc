@@ -11,6 +11,11 @@ let test_cstruct m t =
 
 let test_json m t =
   let j = Tc.to_json m t in
+  let t' = Tc.of_json m j in
+  OUnit.assert_equal
+    ~msg:"idempotent JSON conversion"
+    ~cmp:(Tc.equal m)
+    t t';
   let str = Ezjsonm.to_string j in
   let j' = Ezjsonm.from_string str in
   let t' = Tc.of_json m j' in
@@ -35,7 +40,6 @@ let test_size_of m t =
     (Tc.size_of m t) (Tc.size_of m t)
 
 let random_int i =
-  Printf.printf "XXXX random_int(%d)\n" i;
   if i <= 1 then 0
   else Random.int i
 
@@ -94,6 +98,11 @@ let queue f () =
   f m (Q.of_list []);
   f m (Q.of_list (random_list 1024 (fun i -> Int32.of_int i)))
 
+let misc f () =
+  let m = Tc.option Tc.string in
+  f m None;
+  f m (Some "")
+
 let () =
   let suite k gen =
     k   , [
@@ -111,4 +120,5 @@ let () =
     suite "pair"   pair;
     suite "queue"  queue;
     suite "option" option;
+    suite "misc"   misc;
   ]

@@ -131,8 +131,12 @@ module Reader = struct
         let t = bin_read_t buffer ~pos_ref in
         Mstruct.shift buf !pos_ref;
         t
-      with Bin_prot.Common.Read_error _ ->
-        raise (Read_error "of_bin_prot")
+      with Bin_prot.Common.Read_error (e, p) ->
+        let msg =
+          Printf.sprintf "of_bin_prot[%d]: %s"
+            p (Bin_prot.Common.ReadError.to_string e)
+        in
+        raise (Read_error msg)
 
   let pair a b =
     of_bin_prot (Bin_prot.Read.bin_read_pair (to_bin_prot a) (to_bin_prot b))
@@ -549,7 +553,10 @@ struct
     in
     aux (S.to_list t1) (S.to_list t2)
 
-  let equal t1 t2 = List.for_all2 S.K.equal (S.to_list t1) (S.to_list t2)
+  let equal t1 t2 =
+    let l1 = S.to_list t1 in
+    let l2 = S.to_list t2 in
+    List.length l1 = List.length l2 && List.for_all2 S.K.equal l1 l2
   let hash = Hashtbl.hash
   let to_sexp t = Sexplib.Conv.sexp_of_list S.K.to_sexp (S.to_list t)
   let to_json t = Ezjsonm.list S.K.to_json (S.to_list t)
@@ -583,7 +590,10 @@ struct
     in
     aux (S.to_list t1) (S.to_list t2)
 
-  let equal equal_a t1 t2 = List.for_all2 equal_a (S.to_list t1) (S.to_list t2)
+  let equal equal_a t1 t2 =
+    let l1 = S.to_list t1 in
+    let l2 = S.to_list t2 in
+    List.length l1 = List.length l2 && List.for_all2 equal_a l1 l2
   let hash _ = Hashtbl.hash
   let to_sexp to_sexp_a t = Sexplib.Conv.sexp_of_list to_sexp_a (S.to_list t)
   let to_json to_json_a t = Ezjsonm.list to_json_a (S.to_list t)
@@ -663,7 +673,7 @@ struct
     let l1 = List.sort compare (L.to_alist t1) in
     let l2 = List.sort compare (L.to_alist t2) in
     let f (k1, v1) (k2, v2) = L.K.equal k1 k2 && equal_a v1 v2 in
-    List.for_all2 f l1 l2
+    List.length l1 = List.length l2 && List.for_all2 f l1 l2
 
 end
 
@@ -676,6 +686,18 @@ module String = S0(struct
     let bin_write_t = Bin_prot.Write.bin_write_string
     let bin_read_t = Bin_prot.Read.bin_read_string
   end)
+
+module Cstruct = S0(struct
+    type t = Cstruct.t
+    let compare = Pervasives.compare
+    let sexp_of_t t = Sexplib.Conv.sexp_of_bigstring t.Cstruct.buffer
+    let t_of_sexp s = Cstruct.of_bigarray (Sexplib.Conv.bigstring_of_sexp s)
+    let bin_size_t t = Bin_prot.Size.bin_size_bigstring t.Cstruct.buffer
+    let bin_write_t b ~pos t =
+      Bin_prot.Write.bin_write_bigstring b ~pos t.Cstruct.buffer
+    let bin_read_t b ~pos_ref =
+      Cstruct.of_bigarray (Bin_prot.Read.bin_read_bigstring b ~pos_ref)
+end)
 
 module Unit = S0(struct
     type t = unit
@@ -801,3 +823,4 @@ let int = (module Int: S0 with type t = int)
 let int32 = (module Int32: S0 with type t = int32)
 let int64 = (module Int64: S0 with type t = int64)
 let string = (module String: S0 with type t = string)
+let cstruct = (module Cstruct: S0 with type t = Cstruct.t)

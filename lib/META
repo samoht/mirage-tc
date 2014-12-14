@@ -1,6 +1,6 @@
 # OASIS_START
-# DO NOT EDIT (digest: 3f2a2a578c74729adb7a8ce170aeb9fc)
-version = "0.2.0"
+# DO NOT EDIT (digest: 48731fca1710b3644c0f53fb4d4e813e)
+version = "0.2.1"
 description = "Mirage type-classes"
 requires = "ezjsonm sexplib bin_prot mstruct cstruct"
 archive(byte) = "tc.cma"

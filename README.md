@@ -4,9 +4,9 @@ A set of functors and combinators to pretty-print (using sexplib), to
 convert to and from and JSON and Cstruct buffers.
 
 ```ocaml
-# Tc.show (module Tc.S) "Hello world!";;
+# Tc.show Tc.string "Hello world!";;
 - : string = "\"Hello world!\""
-# Tc.to_json (module Tc.App2(Tc.P)(Tc.I)(Tc.S)) (3, "foo");;
+# Tc.to_json (Tc.pair Tc.int Tc.string) (3, "foo");;
 - : Ezjsonm.t = `A [`String "3"; `String "foo"]
 ```
 
@@ -21,7 +21,7 @@ composition:
 # module M = struct
     type t = { foo: int; bar: string list } with sexp, bin_prot, compare
   end;;
-# module X = Tc.I0(M);;
+# module X = Tc.S0(M);;
 # let t = { foo = 3; bar = [ "hello"; "world" ] };;
 
 # Tc.to_json (module X) t;;

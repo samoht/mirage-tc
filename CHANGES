@@ -1,3 +1,8 @@
+## 0.2.1
+- Report more useful errors on binary parse errors
+- Add cstructs combinators
+- Fix Tc.List.equal
+
 ## 0.2.0 (2014-12-04)
 - Add bool base type-classes
 - Rename I0, I1, I2, I3 to S0, S1, S2 and S3

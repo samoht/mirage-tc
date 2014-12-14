@@ -139,6 +139,7 @@ val int: int t
 val int32: int32 t
 val int64: int64 t
 val string: string t
+val cstruct: Cstruct.t t
 val bool: bool t
 
 val equal: 'a t -> 'a equal
@@ -223,6 +224,7 @@ module App3(F: S3)(X: S0)(Y: S0)(Z: S0): S0 with type t = (X.t, Y.t, Z.t) F.t
 
 module Bool: S0 with type t = bool
 module String: S0 with type t = string
+module Cstruct: S0 with type t = Cstruct.t
 module Unit: S0 with type t = unit
 
 module Option (A: S0): S0 with type t = A.t option
