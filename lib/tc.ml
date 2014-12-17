@@ -693,6 +693,15 @@ module Bool = Bin_prot0(struct
     let bin_read_t = Bin_prot.Read.bin_read_bool
   end)
 
+let biject (type a) (type b) (module A: S0 with type t = a)
+    of_a to_a =
+  let module S = Biject (A) (struct
+      type t = b
+      let of_t = to_a
+      let to_t = of_a
+    end) in
+  (module S: S0 with type t = b)
+
 let list (type a) (module A: S0 with type t = a) =
   let module L = List(A) in
   (module L: S0 with type t = a list)

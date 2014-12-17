@@ -142,6 +142,8 @@ val read_cstruct: 'a t -> Cstruct.t -> 'a
 val write_string: 'a t -> 'a -> string
 val write_cstruct: 'a t -> 'a -> Cstruct.t
 
+val biject: 'a t -> ('a -> 'b) -> ('b -> 'a) -> 'b t
+
 (** {1 Builders} *)
 
 (** Build abstract identifiers. *)
