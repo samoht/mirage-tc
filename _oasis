@@ -1,6 +1,6 @@
 OASISFormat:      0.3
 Name:             tc
-Version:          0.2.1
+Version:          0.3.0
 Synopsis:         Mirage type-classes
 Authors:          Thomas Gazagnaire
 License:          ISC
