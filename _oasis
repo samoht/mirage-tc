@@ -11,7 +11,7 @@ Library tc
   Path:           lib/
   Findlibname:    tc
   Modules:        Tc
-  BuildDepends:   ezjsonm, sexplib, bin_prot, mstruct, cstruct
+  BuildDepends:   ezjsonm, sexplib, bin_prot, mstruct, cstruct, bytes
 
 Executable test
   Path:           lib_test/
