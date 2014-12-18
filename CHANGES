@@ -1,3 +1,11 @@
+## 0.3.0
+- Add combinators for sets
+- Add combinators for bijective mappings
+- Remove [`a to_sexp] type-classes. Now [show] returns the JSON
+  representation of the value. Asking for both [to_sexp] and
+  [to_json] was a bit too much.
+- Do not depend on sexplib anymore
+
 ## 0.2.1
 - Report more useful errors on binary parse errors
 - Add cstructs combinators

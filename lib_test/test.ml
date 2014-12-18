@@ -1,52 +1,40 @@
 let test_show m t =
   ignore (Tc.show m t)
 
+let assert_equal m =
+  OUnit.assert_equal ~cmp:(Tc.equal m) ~printer:(Tc.show m)
+
 let test_cstruct m t =
   let str = Tc.write_string m t in
   let t'  = Tc.read_string m str in
-  OUnit.assert_equal
-    ~msg:"idempotent string conversion"
-    ~cmp:(Tc.equal m)
-    t t'
+  assert_equal m ~msg:"idempotent string conversion" t t'
 
 let test_json m t =
-  let j = Tc.to_json m t in
+  let j =  Tc.to_json m t in
   let t' = Tc.of_json m j in
-  OUnit.assert_equal
-    ~msg:"idempotent JSON conversion"
-    ~cmp:(Tc.equal m)
-    t t';
-  let str = Ezjsonm.to_string j in
-  let j' = Ezjsonm.from_string str in
-  let t' = Tc.of_json m j' in
-  OUnit.assert_equal
-    ~msg:"idempotent string conversion"
-    ~cmp:(Tc.equal m)
-    t t'
+  assert_equal m ~msg:"idempotent JSON conversion" t t';
+  let str = Ezjsonm.(to_string (wrap j)) in
+  let j'  = Ezjsonm.(unwrap (from_string str)) in
+  let t'  = Tc.of_json m j' in
+  assert_equal m ~msg:"idempotent string conversion" t t'
 
 let test_compare m t =
-  OUnit.assert_equal
-    ~msg:"Self comparison"
-    (Tc.compare m t t) 0
+  assert_equal Tc.int ~msg:"Self comparison" (Tc.compare m t t) 0
 
 let test_equal m t =
-  OUnit.assert_equal
-    ~msg:"Self equality"
-    (Tc.equal m t t) true
+  assert_equal Tc.bool ~msg:"Self equality" (Tc.equal m t t) true
 
 let test_size_of m t =
-  OUnit.assert_equal
-    ~msg:"Self size"
-    (Tc.size_of m t) (Tc.size_of m t)
+  assert_equal Tc.int ~msg:"Self size" (Tc.size_of m t) (Tc.size_of m t)
 
 let random_int i =
   if i <= 1 then 0
   else Random.int i
 
 let random_string len =
-  let s = String.create (random_int len) in
-  for i = 0 to String.length s - 1 do
-    s.[i] <- Char.chr (random_int 256)
+  let s = Bytes.create (random_int len) in
+  for i = 0 to Bytes.length s - 1 do
+    Bytes.set s i (Char.chr (random_int 256))
   done;
   s
 

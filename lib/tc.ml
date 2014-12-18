@@ -19,19 +19,17 @@ exception Read_error of string
 type 'a equal = 'a -> 'a -> bool
 type 'a compare = 'a -> 'a -> int
 type 'a hash = 'a -> int
-type 'a to_sexp = 'a -> Sexplib.Sexp.t
 type 'a reader = Mstruct.t -> 'a
 type 'a size_of = 'a -> int
 type 'a writer = 'a -> Cstruct.t -> Cstruct.t
-type 'a to_json = 'a -> Ezjsonm.t
-type 'a of_json = Ezjsonm.t -> 'a
+type 'a to_json = 'a -> Ezjsonm.value
+type 'a of_json = Ezjsonm.value -> 'a
 
 module type S0 = sig
   type t
   val equal: t equal
   val compare: t compare
   val hash: t hash
-  val to_sexp: t to_sexp
   val to_json: t to_json
   val of_json: t of_json
   val size_of: t size_of
@@ -46,7 +44,6 @@ module type S1 = sig
   val equal: 'a equal -> 'a t equal
   val compare: 'a compare -> 'a t compare
   val hash: 'a hash -> 'a t hash
-  val to_sexp: 'a to_sexp -> 'a t to_sexp
   val to_json: 'a to_json -> 'a t to_json
   val of_json: 'a of_json -> 'a t of_json
   val size_of: 'a size_of -> 'a t size_of
@@ -59,7 +56,6 @@ module type S2 = sig
   val equal: 'a equal -> 'b equal -> ('a, 'b) t equal
   val compare: 'a compare -> 'b compare -> ('a, 'b) t compare
   val hash: 'a hash -> 'b hash -> ('a, 'b) t hash
-  val to_sexp: 'a to_sexp -> 'b to_sexp -> ('a, 'b) t to_sexp
   val to_json: 'a to_json -> 'b to_json -> ('a, 'b) t to_json
   val of_json: 'a of_json -> 'b of_json -> ('a, 'b) t of_json
   val size_of: 'a size_of -> 'b size_of -> ('a, 'b) t size_of
@@ -72,7 +68,6 @@ module type S3 = sig
   val equal: 'a equal -> 'b equal -> 'c equal -> ('a, 'b, 'c) t equal
   val compare: 'a compare -> 'b compare -> 'c compare -> ('a, 'b, 'c) t compare
   val hash: 'a hash -> 'b hash -> 'c hash -> ('a, 'b, 'c) t hash
-  val to_sexp: 'a to_sexp -> 'b to_sexp -> 'c to_sexp -> ('a, 'b, 'c) t to_sexp
   val to_json: 'a to_json -> 'b to_json -> 'c to_json -> ('a, 'b, 'c) t to_json
   val of_json: 'a of_json -> 'b of_json -> 'c of_json -> ('a, 'b, 'c) t of_json
   val size_of: 'a size_of -> 'b size_of -> 'c size_of -> ('a, 'b, 'c) t size_of
@@ -84,7 +79,6 @@ end
 let equal (type t) (module S: S0 with type t = t) = S.equal
 let compare (type t) (module S: S0 with type t = t) = S.compare
 let hash (type t) (module S: S0 with type t = t) = S.hash
-let to_sexp (type t) (module S: S0 with type t = t) = S.to_sexp
 let to_json (type t) (module S: S0 with type t = t) = S.to_json
 let of_json (type t) (module S: S0 with type t = t) = S.of_json
 let size_of (type t) (module S: S0 with type t = t) = S.size_of
@@ -92,11 +86,15 @@ let write (type t) (module S: S0 with type t = t) = S.write
 let read (type t) (module S: S0 with type t = t) = S.read
 
 let show (type t) (module S: S0 with type t = t) t =
-  Sexplib.Sexp.to_string_hum (S.to_sexp t)
+  let encodable = match S.to_json t with
+    | `A _ | `O _ as x -> x
+    | x -> `A [x]
+  in
+  Ezjsonm.to_string ~minify:true encodable
 
 let shows (type t) (module S: S0 with type t = t) xs =
-  List.map S.to_sexp xs
-  |> fun l -> Sexplib.Sexp.to_string_hum (Sexplib.Sexp.List l)
+  let jsons = List.map S.to_json xs in
+  Ezjsonm.to_string ~minify:true (`A jsons)
 
 let read_cstruct (type t) (module S: S0 with type t = t) buf =
   S.read (Mstruct.of_cstruct buf)
@@ -248,24 +246,22 @@ module Size_of = struct
   let option = Bin_prot.Size.bin_size_option
 end
 
-type 'a of_sexp = Sexplib.Type.t -> 'a
-
-module S0 (S: sig
-             type t
-             val sexp_of_t: t to_sexp
-             val t_of_sexp: t of_sexp
-             val compare: t compare
-             val bin_size_t: t Bin_prot.Size.sizer
-             val bin_write_t: t Bin_prot.Write.writer
-             val bin_read_t: t Bin_prot.Read.reader
-           end) =
+module Bin_prot0
+    (S: sig
+       type t
+       val to_json: t to_json
+       val of_json: t of_json
+       val compare: t compare
+       val bin_size_t: t Bin_prot.Size.sizer
+       val bin_write_t: t Bin_prot.Write.writer
+       val bin_read_t: t Bin_prot.Read.reader
+     end) =
 struct
   include S
   let equal x y = compare x y = 0
   let hash = Hashtbl.hash
-  let to_sexp = S.sexp_of_t
-  let to_json t = Ezjsonm.of_sexp (S.sexp_of_t t)
-  let of_json t = S.t_of_sexp (Ezjsonm.to_sexp t)
+  let to_json = S.to_json
+  let of_json = S.of_json
   let size_of = bin_size_t
   let read = Reader.of_bin_prot S.bin_read_t
   let write = Writer.of_bin_prot S.bin_write_t
@@ -276,7 +272,6 @@ module App1(F: S1)(X: S0) = struct
   let equal = F.equal X.equal
   let compare = F.compare X.compare
   let hash = F.hash X.hash
-  let to_sexp = F.to_sexp X.to_sexp
   let to_json = F.to_json X.to_json
   let of_json = F.of_json X.of_json
   let size_of = F.size_of X.size_of
@@ -284,18 +279,17 @@ module App1(F: S1)(X: S0) = struct
   let read = F.read X.read
 end
 
-let max_rand = 1073741823 (* 2 ** 30 - 1 *)
-
-module S1 (S: sig
-             type 'a t
-             val sexp_of_t: 'a to_sexp -> 'a t to_sexp
-             val t_of_sexp: 'a of_sexp -> 'a t of_sexp
-             val compare: 'a compare -> 'a t compare
-             val bin_size_t: ('a, 'a t) Bin_prot.Size.sizer1
-             val bin_write_t: ('a, 'a t) Bin_prot.Write.writer1
-             val bin_read_t: ('a, 'a t) Bin_prot.Read.reader1
-           end) =
-struct
+module Bin_prot1
+    (S: sig
+       type 'a t
+       val to_json: 'a to_json -> 'a t to_json
+       val of_json: 'a of_json -> 'a t of_json
+       val compare: 'a compare -> 'a t compare
+       val bin_size_t: ('a, 'a t) Bin_prot.Size.sizer1
+       val bin_write_t: ('a, 'a t) Bin_prot.Write.writer1
+       val bin_read_t: ('a, 'a t) Bin_prot.Read.reader1
+     end)
+= struct
 
   include S
 
@@ -303,39 +297,7 @@ struct
     try S.compare (fun x y -> if equal_a x y then 0 else raise Exit) x y = 0
     with Exit -> false
 
-  let to_sexp = S.sexp_of_t
   let hash _ = Hashtbl.hash
-
-  let to_json json_of_a t =
-    let open Sexplib.Type in
-    let sexprs = ref [] in
-    let sexp_of_a a =
-      let marker = "__JSON__" ^ string_of_int (Random.int max_rand) in
-      sexprs := (marker, a) :: !sexprs;
-      Atom marker in
-    let rec json_of_sexp = function
-      | List l -> Ezjsonm.list json_of_sexp l
-      | Atom x ->
-        try json_of_a (List.assq x !sexprs)
-        with Not_found -> Ezjsonm.encode_string x
-    in
-    json_of_sexp (S.sexp_of_t sexp_of_a t)
-
-  let of_json a_of_json t =
-    let open Sexplib.Type in
-    let sexprs = ref [] in
-    let rec sexp_of_json json =
-      let e = match Ezjsonm.decode_string json with
-        | Some s -> Atom s
-        | None   -> match json with
-          | `A l -> List (List.map sexp_of_json l)
-          | json  -> Atom (Ezjsonm.to_string json)
-      in
-      sexprs := (e, json) :: !sexprs;
-      e
-    in
-    let a_of_sexp e = a_of_json (List.assq e !sexprs) in
-    S.t_of_sexp a_of_sexp (sexp_of_json t)
 
   let size_of = bin_size_t
 
@@ -354,7 +316,6 @@ module App2(F: S2)(X: S0)(Y: S0) = struct
   let equal = F.equal X.equal Y.equal
   let compare = F.compare X.compare Y.compare
   let hash = F.hash X.hash Y.hash
-  let to_sexp = F.to_sexp X.to_sexp Y.to_sexp
   let to_json = F.to_json X.to_json Y.to_json
   let of_json = F.of_json X.of_json Y.of_json
   let size_of = F.size_of X.size_of Y.size_of
@@ -362,16 +323,17 @@ module App2(F: S2)(X: S0)(Y: S0) = struct
   let read = F.read X.read Y.read
 end
 
-module S2 (S: sig
-             type ('a, 'b) t
-             val sexp_of_t: 'a to_sexp -> 'b to_sexp -> ('a, 'b) t to_sexp
-             val t_of_sexp: 'a of_sexp -> 'b of_sexp -> ('a, 'b) t of_sexp
-             val compare: 'a compare -> 'b compare -> ('a, 'b) t compare
-             val bin_size_t: ('a, 'b, ('a, 'b) t) Bin_prot.Size.sizer2
-             val bin_write_t: ('a, 'b, ('a, 'b) t) Bin_prot.Write.writer2
-             val bin_read_t: ('a, 'b, ('a, 'b) t) Bin_prot.Read.reader2
-           end) =
-struct
+module Bin_prot2
+    (S: sig
+       type ('a, 'b) t
+       val to_json: 'a to_json -> 'b to_json -> ('a, 'b) t to_json
+       val of_json: 'a of_json -> 'b of_json -> ('a, 'b) t of_json
+       val compare: 'a compare -> 'b compare -> ('a, 'b) t compare
+       val bin_size_t: ('a, 'b, ('a, 'b) t) Bin_prot.Size.sizer2
+       val bin_write_t: ('a, 'b, ('a, 'b) t) Bin_prot.Write.writer2
+       val bin_read_t: ('a, 'b, ('a, 'b) t) Bin_prot.Read.reader2
+     end)
+= struct
 
   include S
 
@@ -382,7 +344,6 @@ struct
     with Exit -> false
 
   let hash _ _ = Hashtbl.hash
-  let to_sexp = S.sexp_of_t
   let size_of = S.bin_size_t
 
   let read read_a read_b =
@@ -394,46 +355,6 @@ struct
     let bin_write_a = Writer.to_bin_prot write_a in
     let bin_write_b = Writer.to_bin_prot write_b in
     Writer.of_bin_prot (S.bin_write_t bin_write_a bin_write_b)
-
-  let to_json json_of_a json_of_b t =
-    let open Sexplib.Type in
-    let sexprs_a = ref [] in
-    let sexp_of_a a =
-      let marker = "__JSON__A_" ^ string_of_int (Random.int max_rand) in
-      sexprs_a := (marker, a) :: !sexprs_a;
-      Atom marker in
-    let sexprs_b = ref [] in
-    let sexp_of_b b =
-      let marker = "__JSON__B_" ^ string_of_int (Random.int max_rand) in
-      sexprs_b := (marker, b) :: !sexprs_b;
-      Atom marker in
-    let rec json_of_sexp = function
-      | List l -> Ezjsonm.list json_of_sexp l
-      | Atom x ->
-        try json_of_a (List.assq x !sexprs_a)
-        with Not_found ->
-          try json_of_b (List.assq x !sexprs_b)
-          with Not_found -> Ezjsonm.encode_string x
-    in
-    json_of_sexp (S.sexp_of_t sexp_of_a sexp_of_b t)
-
-  let of_json a_of_json b_of_json t =
-    let open Sexplib.Type in
-    let sexprs = ref [] in
-    let rec sexp_of_json json =
-      let e = match Ezjsonm.decode_string json with
-        | Some s -> Atom s
-        | None   -> match json with
-          | `A l -> List (List.map sexp_of_json l)
-          | json  -> Atom (Ezjsonm.to_string json)
-      in
-      sexprs := (e, json) :: !sexprs;
-      e
-    in
-    let a_of_sexp e = a_of_json (List.assq e !sexprs) in
-    let b_of_sexp e = b_of_json (List.assq e !sexprs) in
-    S.t_of_sexp a_of_sexp b_of_sexp (sexp_of_json t)
-
 end
 
 module App3(F: S3)(X: S0)(Y: S0)(Z: S0) = struct
@@ -441,7 +362,6 @@ module App3(F: S3)(X: S0)(Y: S0)(Z: S0) = struct
   let equal = F.equal X.equal Y.equal Z.equal
   let compare = F.compare X.compare Y.compare Z.compare
   let hash = F.hash X.hash Y.hash Z.hash
-  let to_sexp = F.to_sexp X.to_sexp Y.to_sexp Z.to_sexp
   let to_json = F.to_json X.to_json Y.to_json Z.to_json
   let of_json = F.of_json X.of_json Y.of_json Z.of_json
   let size_of = F.size_of X.size_of Y.size_of Z.size_of
@@ -449,15 +369,16 @@ module App3(F: S3)(X: S0)(Y: S0)(Z: S0) = struct
   let read = F.read X.read Y.read Z.read
 end
 
-module S3 (S: sig
-             type ('a, 'b, 'c) t
-             val sexp_of_t: 'a to_sexp -> 'b to_sexp -> 'c to_sexp -> ('a, 'b, 'c) t to_sexp
-             val t_of_sexp: 'a of_sexp -> 'b of_sexp -> 'c of_sexp -> ('a, 'b, 'c) t of_sexp
-             val compare: 'a compare -> 'b compare -> 'c compare -> ('a, 'b, 'c) t compare
-             val bin_size_t: ('a, 'b, 'c, ('a, 'b, 'c) t) Bin_prot.Size.sizer3
-             val bin_write_t: ('a, 'b, 'c, ('a, 'b, 'c) t) Bin_prot.Write.writer3
-             val bin_read_t: ('a, 'b, 'c, ('a, 'b, 'c) t) Bin_prot.Read.reader3
-           end)
+module Bin_prot3
+    (S: sig
+       type ('a, 'b, 'c) t
+       val to_json: 'a to_json -> 'b to_json -> 'c to_json -> ('a, 'b, 'c) t to_json
+       val of_json: 'a of_json -> 'b of_json -> 'c of_json -> ('a, 'b, 'c) t of_json
+       val compare: 'a compare -> 'b compare -> 'c compare -> ('a, 'b, 'c) t compare
+       val bin_size_t: ('a, 'b, 'c, ('a, 'b, 'c) t) Bin_prot.Size.sizer3
+       val bin_write_t: ('a, 'b, 'c, ('a, 'b, 'c) t) Bin_prot.Write.writer3
+       val bin_read_t: ('a, 'b, 'c, ('a, 'b, 'c) t) Bin_prot.Read.reader3
+     end)
 = struct
 
   include S
@@ -470,7 +391,6 @@ module S3 (S: sig
     with Exit -> false
 
   let hash _ _ _ = Hashtbl.hash
-  let to_sexp = S.sexp_of_t
   let size_of = S.bin_size_t
 
   let read read_a read_b read_c =
@@ -484,53 +404,6 @@ module S3 (S: sig
     let bin_write_b = Writer.to_bin_prot write_b in
     let bin_write_c = Writer.to_bin_prot write_c in
     Writer.of_bin_prot (S.bin_write_t bin_write_a bin_write_b bin_write_c)
-
-  let to_json json_of_a json_of_b json_of_c t =
-    let open Sexplib.Type in
-    let sexprs_a = ref [] in
-    let sexp_of_a a =
-      let marker = "__JSON__A_" ^ string_of_int (Random.int max_rand) in
-      sexprs_a := (marker, a) :: !sexprs_a;
-      Atom marker in
-    let sexprs_b = ref [] in
-    let sexp_of_b b =
-      let marker = "__JSON__B_" ^ string_of_int (Random.int max_rand) in
-      sexprs_b := (marker, b) :: !sexprs_b;
-      Atom marker in
-    let sexprs_c = ref [] in
-    let sexp_of_c c =
-      let marker = "__JSON__C_" ^ string_of_int (Random.int max_rand) in
-      sexprs_c := (marker, c) :: !sexprs_c;
-      Atom marker in
-    let rec json_of_sexp = function
-      | List l -> Ezjsonm.list json_of_sexp l
-      | Atom x ->
-        try json_of_a (List.assq x !sexprs_a)
-        with Not_found ->
-          try json_of_b (List.assq x !sexprs_b)
-          with Not_found ->
-            try json_of_c (List.assq x !sexprs_c)
-            with Not_found -> Ezjsonm.encode_string x
-    in
-    json_of_sexp (S.sexp_of_t sexp_of_a sexp_of_b sexp_of_c t)
-
-  let of_json a_of_json b_of_json c_of_json t =
-    let open Sexplib.Type in
-    let sexprs = ref [] in
-    let rec sexp_of_json json =
-      let e = match Ezjsonm.decode_string json with
-        | Some s -> Atom s
-        | None   -> match json with
-          | `A l -> List (List.map sexp_of_json l)
-          | json  -> Atom (Ezjsonm.to_string json)
-      in
-      sexprs := (e, json) :: !sexprs;
-      e
-    in
-    let a_of_sexp e = a_of_json (List.assq e !sexprs) in
-    let b_of_sexp e = b_of_json (List.assq e !sexprs) in
-    let c_of_sexp e = c_of_json (List.assq e !sexprs) in
-    S.t_of_sexp a_of_sexp b_of_sexp c_of_sexp (sexp_of_json t)
 
 end
 
@@ -558,7 +431,6 @@ struct
     let l2 = S.to_list t2 in
     List.length l1 = List.length l2 && List.for_all2 S.K.equal l1 l2
   let hash = Hashtbl.hash
-  let to_sexp t = Sexplib.Conv.sexp_of_list S.K.to_sexp (S.to_list t)
   let to_json t = Ezjsonm.list S.K.to_json (S.to_list t)
   let of_json j = S.of_list (Ezjsonm.get_list S.K.of_json j)
   let size_of t = Bin_prot.Size.bin_size_list S.K.size_of (S.to_list t)
@@ -572,12 +444,43 @@ struct
 
 end
 
-module As_L1 (S: sig
-            type 'a t
-            val to_list: 'a t -> 'a list
-            val of_list: 'a list -> 'a t
-          end) =
+module Set (A: S0) = struct
+  module S = Set.Make(A)
+  module X = struct
+    type t = S.t
+    module K = A
+    let to_list = S.elements
+    let of_list l = List.fold_left (fun s e -> S.add e s) S.empty l
+  end
+  type t = S.t
+  include As_L0(X)
+end
+
+module Biject (A: S0) (B: sig
+                         type t
+                         val to_t: A.t -> t
+                         val of_t: t -> A.t
+                       end) =
 struct
+  open B
+  type t = B.t
+  let compare x y = A.compare (of_t x) (of_t y)
+  let equal x y = A.equal (of_t x) (of_t y)
+  let hash x = A.hash (of_t x)
+  let to_json x = A.to_json (of_t x)
+  let of_json x = to_t (A.of_json x)
+  let size_of x = A.size_of (of_t x)
+  let write x = A.write (of_t x)
+  let read x = to_t (A.read x)
+end
+
+module As_L1
+    (S: sig
+       type 'a t
+       val to_list: 'a t -> 'a list
+       val of_list: 'a list -> 'a t
+     end)
+= struct
 
   let compare compare_a t1 t2 =
     let rec aux t1 t2 = match t1, t2 with
@@ -594,14 +497,12 @@ struct
     let l1 = S.to_list t1 in
     let l2 = S.to_list t2 in
     List.length l1 = List.length l2 && List.for_all2 equal_a l1 l2
+
   let hash _ = Hashtbl.hash
-  let to_sexp to_sexp_a t = Sexplib.Conv.sexp_of_list to_sexp_a (S.to_list t)
   let to_json to_json_a t = Ezjsonm.list to_json_a (S.to_list t)
   let of_json of_json_a j = S.of_list (Ezjsonm.get_list of_json_a j)
   let size_of size_of_a t = Bin_prot.Size.bin_size_list size_of_a (S.to_list t)
-
-  let write write_a t =
-    Writer.list write_a (S.to_list t)
+  let write write_a t = Writer.list write_a (S.to_list t)
 
   let read read_a buf =
     let x = Reader.list read_a buf in
@@ -618,10 +519,6 @@ module As_AL1 (L: sig
 struct
 
   let hash _ = Hashtbl.hash
-
-  let to_sexp sexp_of_a t =
-    let l = L.to_alist t in
-    Sexplib.Conv.sexp_of_list (Sexplib.Conv.sexp_of_pair L.K.to_sexp sexp_of_a) l
 
   let to_json json_of_a t =
     let l = L.to_alist t in
@@ -677,21 +574,21 @@ struct
 
 end
 
-module String = S0(struct
+module String = Bin_prot0(struct
     type t = string
     let compare = String.compare
-    let sexp_of_t = Sexplib.Conv.sexp_of_string
-    let t_of_sexp = Sexplib.Conv.string_of_sexp
+    let to_json = Ezjsonm.encode_string
+    let of_json = Ezjsonm.decode_string_exn
     let bin_size_t = Bin_prot.Size.bin_size_string
     let bin_write_t = Bin_prot.Write.bin_write_string
     let bin_read_t = Bin_prot.Read.bin_read_string
   end)
 
-module Cstruct = S0(struct
+module Cstruct = Bin_prot0(struct
     type t = Cstruct.t
     let compare = Pervasives.compare
-    let sexp_of_t t = Sexplib.Conv.sexp_of_bigstring t.Cstruct.buffer
-    let t_of_sexp s = Cstruct.of_bigarray (Sexplib.Conv.bigstring_of_sexp s)
+    let to_json t = Ezjsonm.encode_string (Cstruct.to_string t)
+    let of_json t = Cstruct.of_string (Ezjsonm.decode_string_exn t)
     let bin_size_t t = Bin_prot.Size.bin_size_bigstring t.Cstruct.buffer
     let bin_write_t b ~pos t =
       Bin_prot.Write.bin_write_bigstring b ~pos t.Cstruct.buffer
@@ -699,84 +596,86 @@ module Cstruct = S0(struct
       Cstruct.of_bigarray (Bin_prot.Read.bin_read_bigstring b ~pos_ref)
 end)
 
-module Unit = S0(struct
+module Unit = Bin_prot0(struct
     type t = unit
     let compare _ _ = 0
-    let sexp_of_t = Sexplib.Conv.sexp_of_unit
-    let t_of_sexp = Sexplib.Conv.unit_of_sexp
+    let to_json = Ezjsonm.unit
+    let of_json = Ezjsonm.get_unit
     let bin_size_t = Bin_prot.Size.bin_size_unit
     let bin_write_t = Bin_prot.Write.bin_write_unit
     let bin_read_t = Bin_prot.Read.bin_read_unit
   end)
 
-module O1 = S1(struct
-    type 'a t = 'a option
-    let compare = Compare.option
-    let sexp_of_t = Sexplib.Conv.sexp_of_option
-    let t_of_sexp = Sexplib.Conv.option_of_sexp
-    let bin_size_t = Bin_prot.Size.bin_size_option
-    let bin_write_t = Bin_prot.Write.bin_write_option
-    let bin_read_t = Bin_prot.Read.bin_read_option
-end)
+module O1 = struct
+  type 'a t = 'a option
+  let compare = Compare.option
+  let equal = Equal.option
+  let hash _ = Hashtbl.hash
+  let to_json = Ezjsonm.option
+  let of_json = Ezjsonm.get_option
+  let size_of = Size_of.option
+  let write = Writer.option
+  let read = Reader.option
+end
 module Option (A: S0) = App1(O1)(A)
 
-module P2 = S2(struct
+module P2 = Bin_prot2(struct
     type ('a, 'b) t = 'a * 'b
     let compare = Compare.pair
-    let sexp_of_t = Sexplib.Conv.sexp_of_pair
-    let t_of_sexp = Sexplib.Conv.pair_of_sexp
+    let to_json = Ezjsonm.pair
+    let of_json = Ezjsonm.get_pair
     let bin_size_t = Bin_prot.Size.bin_size_pair
     let bin_write_t = Bin_prot.Write.bin_write_pair
     let bin_read_t = Bin_prot.Read.bin_read_pair
   end)
 module Pair (A: S0) (B: S0) = App2(P2)(A)(B)
 
-module T3 = S3(struct
+module T3 = Bin_prot3(struct
     type ('a, 'b, 'c) t = 'a * 'b * 'c
     let compare = Compare.triple
-    let sexp_of_t = Sexplib.Conv.sexp_of_triple
-    let t_of_sexp = Sexplib.Conv.triple_of_sexp
+    let to_json = Ezjsonm.triple
+    let of_json = Ezjsonm.get_triple
     let bin_size_t = Bin_prot.Size.bin_size_triple
     let bin_write_t = Bin_prot.Write.bin_write_triple
     let bin_read_t = Bin_prot.Read.bin_read_triple
   end)
 module Triple (A: S0) (B: S0) (C: S0) = App3(T3)(A)(B)(C)
 
-module Int = S0(struct
+module Int = Bin_prot0(struct
     type t = int
     let compare = Pervasives.compare
-    let sexp_of_t = Sexplib.Conv.sexp_of_int
-    let t_of_sexp = Sexplib.Conv.int_of_sexp
+    let to_json = Ezjsonm.int
+    let of_json = Ezjsonm.get_int
     let bin_size_t = Bin_prot.Size.bin_size_int
     let bin_write_t = Bin_prot.Write.bin_write_int
     let bin_read_t = Bin_prot.Read.bin_read_int
   end)
 
-module Int32 = S0(struct
+module Int32 = Bin_prot0(struct
     type t = int32
     let compare = Int32.compare
-    let sexp_of_t = Sexplib.Conv.sexp_of_int32
-    let t_of_sexp = Sexplib.Conv.int32_of_sexp
+    let to_json = Ezjsonm.int32
+    let of_json = Ezjsonm.get_int32
     let bin_size_t = Bin_prot.Size.bin_size_int32
     let bin_write_t = Bin_prot.Write.bin_write_int32
     let bin_read_t = Bin_prot.Read.bin_read_int32
 end)
 
-module Int64 = S0(struct
+module Int64 = Bin_prot0(struct
     type t = int64
     let compare = Int64.compare
-    let sexp_of_t = Sexplib.Conv.sexp_of_int64
-    let t_of_sexp = Sexplib.Conv.int64_of_sexp
+    let to_json = Ezjsonm.int64
+    let of_json = Ezjsonm.get_int64
     let bin_size_t = Bin_prot.Size.bin_size_int64
     let bin_write_t = Bin_prot.Write.bin_write_int64
     let bin_read_t = Bin_prot.Read.bin_read_int64
 end)
 
-module L1 = S1(struct
+module L1 = Bin_prot1(struct
     type 'a t = 'a list
     let compare = Compare.list
-    let sexp_of_t = Sexplib.Conv.sexp_of_list
-    let t_of_sexp = Sexplib.Conv.list_of_sexp
+    let to_json = Ezjsonm.list
+    let of_json = Ezjsonm.get_list
     let bin_size_t = Bin_prot.Size.bin_size_list
     let bin_write_t = Bin_prot.Write.bin_write_list
     let bin_read_t = Bin_prot.Read.bin_read_list
@@ -784,15 +683,24 @@ end)
 
 module List (A: S0) = App1(L1)(A)
 
-module Bool = S0(struct
+module Bool = Bin_prot0(struct
     type t = bool
     let compare = Pervasives.compare
-    let sexp_of_t = Sexplib.Conv.sexp_of_bool
-    let t_of_sexp = Sexplib.Conv.bool_of_sexp
+    let to_json = Ezjsonm.bool
+    let of_json = Ezjsonm.get_bool
     let bin_size_t = Bin_prot.Size.bin_size_bool
     let bin_write_t = Bin_prot.Write.bin_write_bool
     let bin_read_t = Bin_prot.Read.bin_read_bool
   end)
+
+let biject (type a) (type b) (module A: S0 with type t = a)
+    of_a to_a =
+  let module S = Biject (A) (struct
+      type t = b
+      let of_t = to_a
+      let to_t = of_a
+    end) in
+  (module S: S0 with type t = b)
 
 let list (type a) (module A: S0 with type t = a) =
   let module L = List(A) in

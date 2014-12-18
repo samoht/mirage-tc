@@ -25,9 +25,6 @@ type 'a compare = 'a -> 'a -> int
 type 'a hash = 'a -> int
 (** Hashing. *)
 
-type 'a to_sexp = 'a -> Sexplib.Sexp.t
-(** Pretty-printing. *)
-
 type 'a reader = Mstruct.t -> 'a
 (** Mstruct reader. *)
 
@@ -42,8 +39,8 @@ type 'a writer = 'a -> Cstruct.t -> Cstruct.t
     the next write. *)
 
 (** JSON converters. *)
-type 'a to_json = 'a -> Ezjsonm.t
-type 'a of_json = Ezjsonm.t -> 'a
+type 'a to_json = 'a -> Ezjsonm.value
+type 'a of_json = Ezjsonm.value -> 'a
 
 (** Abstract Identifiers. *)
 module type S0 = sig
@@ -51,9 +48,6 @@ module type S0 = sig
   val equal: t equal
   val compare: t compare
   val hash: t hash
-
-  (** Used for debugging purposes, might expose internal state. *)
-  val to_sexp: t to_sexp
 
   (** The REST inteface. *)
   val to_json: t to_json
@@ -72,9 +66,6 @@ module type S1 = sig
   val compare: 'a compare -> 'a t compare
   val hash: 'a hash -> 'a t hash
 
-  (** Pretty-printing *)
-  val to_sexp: 'a to_sexp -> 'a t to_sexp
-
   (** The REST interface *)
   val to_json: 'a to_json -> 'a t to_json
   val of_json: 'a of_json -> 'a t of_json
@@ -92,9 +83,6 @@ module type S2 = sig
   val compare: 'a compare -> 'b compare -> ('a, 'b) t compare
   val hash: 'a hash -> 'b hash -> ('a, 'b) t hash
 
-  (** Pretty-printing *)
-  val to_sexp: 'a to_sexp -> 'b to_sexp -> ('a, 'b) t to_sexp
-
   (** The REST interface *)
   val to_json: 'a to_json -> 'b to_json -> ('a, 'b) t to_json
   val of_json: 'a of_json -> 'b of_json -> ('a, 'b) t of_json
@@ -111,9 +99,6 @@ module type S3 = sig
   val equal: 'a equal -> 'b equal -> 'c equal -> ('a, 'b, 'c) t equal
   val compare: 'a compare -> 'b compare -> 'c compare -> ('a, 'b, 'c) t compare
   val hash: 'a hash -> 'b hash -> 'c hash -> ('a, 'b, 'c) t hash
-
-  (** Pretty-printing *)
-  val to_sexp: 'a to_sexp -> 'b to_sexp -> 'c to_sexp -> ('a, 'b, 'c) t to_sexp
 
   (** The REST interface *)
   val to_json: 'a to_json -> 'b to_json -> 'c to_json -> ('a, 'b, 'c) t to_json
@@ -145,7 +130,6 @@ val bool: bool t
 val equal: 'a t -> 'a equal
 val compare: 'a t -> 'a compare
 val hash: 'a t -> 'a hash
-val to_sexp: 'a t -> 'a to_sexp
 val to_json: 'a t -> 'a to_json
 val of_json: 'a t -> 'a of_json
 val size_of: 'a t -> 'a size_of
@@ -158,57 +142,60 @@ val read_cstruct: 'a t -> Cstruct.t -> 'a
 val write_string: 'a t -> 'a -> string
 val write_cstruct: 'a t -> 'a -> Cstruct.t
 
+val biject: 'a t -> ('a -> 'b) -> ('b -> 'a) -> 'b t
+
 (** {1 Builders} *)
 
-type 'a of_sexp = Sexplib.Type.t -> 'a
-(** Type helper. *)
-
 (** Build abstract identifiers. *)
-module S0 (S: sig
-             type t
-             val sexp_of_t: t to_sexp
-             val t_of_sexp: t of_sexp
-             val compare: t compare
-             val bin_size_t: t Bin_prot.Size.sizer
-             val bin_write_t: t Bin_prot.Write.writer
-             val bin_read_t: t Bin_prot.Read.reader
-           end):
+module Bin_prot0
+    (S: sig
+       type t
+       val to_json: t to_json
+       val of_json: t of_json
+       val compare: t compare
+       val bin_size_t: t Bin_prot.Size.sizer
+       val bin_write_t: t Bin_prot.Write.writer
+       val bin_read_t: t Bin_prot.Read.reader
+     end):
   S0 with type t = S.t
 
 (** Build abstract identifiers with a polymorphic parameters. *)
-module S1 (S: sig
-             type 'a t
-             val sexp_of_t: 'a to_sexp -> 'a t to_sexp
-             val t_of_sexp: 'a of_sexp -> 'a t of_sexp
-             val compare: 'a compare -> 'a t compare
-             val bin_size_t: ('a, 'a t) Bin_prot.Size.sizer1
-             val bin_write_t: ('a, 'a t) Bin_prot.Write.writer1
-             val bin_read_t: ('a, 'a t) Bin_prot.Read.reader1
-           end):
+module Bin_prot1
+    (S: sig
+       type 'a t
+       val to_json: 'a to_json -> 'a t to_json
+       val of_json: 'a of_json -> 'a t of_json
+       val compare: 'a compare -> 'a t compare
+       val bin_size_t: ('a, 'a t) Bin_prot.Size.sizer1
+       val bin_write_t: ('a, 'a t) Bin_prot.Write.writer1
+       val bin_read_t: ('a, 'a t) Bin_prot.Read.reader1
+     end):
   S1 with type 'a t = 'a S.t
 
 (** Build abstract identfiers with two polymorphic parameters. *)
-module S2 (S: sig
-             type ('a, 'b) t
-             val sexp_of_t: 'a to_sexp -> 'b to_sexp -> ('a, 'b) t to_sexp
-             val t_of_sexp: 'a of_sexp -> 'b of_sexp -> ('a, 'b) t of_sexp
-             val compare: 'a compare -> 'b compare -> ('a, 'b) t compare
-             val bin_size_t: ('a, 'b, ('a, 'b) t) Bin_prot.Size.sizer2
-             val bin_write_t: ('a, 'b, ('a, 'b) t) Bin_prot.Write.writer2
-             val bin_read_t: ('a, 'b, ('a, 'b) t) Bin_prot.Read.reader2
-           end):
+module Bin_prot2
+    (S: sig
+       type ('a, 'b) t
+       val to_json: 'a to_json -> 'b to_json -> ('a, 'b) t to_json
+       val of_json: 'a of_json -> 'b of_json -> ('a, 'b) t of_json
+       val compare: 'a compare -> 'b compare -> ('a, 'b) t compare
+       val bin_size_t: ('a, 'b, ('a, 'b) t) Bin_prot.Size.sizer2
+       val bin_write_t: ('a, 'b, ('a, 'b) t) Bin_prot.Write.writer2
+       val bin_read_t: ('a, 'b, ('a, 'b) t) Bin_prot.Read.reader2
+     end):
   S2 with type ('a, 'b) t = ('a, 'b) S.t
 
 (** Build abstract identfiers with three polymorphic parameters. *)
-module S3 (S: sig
-             type ('a, 'b, 'c) t
-             val sexp_of_t: 'a to_sexp -> 'b to_sexp -> 'c to_sexp -> ('a, 'b, 'c) t to_sexp
-             val t_of_sexp: 'a of_sexp -> 'b of_sexp -> 'c of_sexp -> ('a, 'b, 'c) t of_sexp
-             val compare: 'a compare -> 'b compare -> 'c compare -> ('a, 'b, 'c) t compare
-             val bin_size_t: ('a, 'b, 'c, ('a, 'b, 'c) t) Bin_prot.Size.sizer3
-             val bin_write_t: ('a, 'b, 'c, ('a, 'b, 'c) t) Bin_prot.Write.writer3
-             val bin_read_t: ('a, 'b, 'c, ('a, 'b, 'c) t) Bin_prot.Read.reader3
-           end):
+module Bin_prot3
+    (S: sig
+       type ('a, 'b, 'c) t
+       val to_json: 'a to_json -> 'b to_json -> 'c to_json -> ('a, 'b, 'c) t to_json
+       val of_json: 'a of_json -> 'b of_json -> 'c of_json -> ('a, 'b, 'c) t of_json
+       val compare: 'a compare -> 'b compare -> 'c compare -> ('a, 'b, 'c) t compare
+       val bin_size_t: ('a, 'b, 'c, ('a, 'b, 'c) t) Bin_prot.Size.sizer3
+       val bin_write_t: ('a, 'b, 'c, ('a, 'b, 'c) t) Bin_prot.Write.writer3
+       val bin_read_t: ('a, 'b, 'c, ('a, 'b, 'c) t) Bin_prot.Read.reader3
+     end):
   S3 with type ('a, 'b, 'c) t = ('a, 'b, 'c) S.t
 
 (** Monorphize a type with one parameter. *)
@@ -242,6 +229,16 @@ module Int64: S0 with type t = int64
 
 module List (A: S0): S0 with type t = A.t list
 module L1: S1 with type 'a t = 'a list
+
+module Set (A: S0): S0 with type t = Set.Make(A).t
+
+module Biject (A: S0)
+    (B: sig
+       type t
+       val to_t: A.t -> t
+       val of_t: t -> A.t
+     end)
+  : S0 with type t = B.t
 
 module As_L0
   (S: sig
