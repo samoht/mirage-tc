@@ -41,7 +41,7 @@ configure:
 # OASIS_STOP
 
 VERSION = $(shell grep 'Version:' _oasis | sed 's/Version: *//')
-NAME    = $(shell grep 'Name:' _oasis    | sed 's/Name: *//')
+NAME    = mirage-tc
 ARCHIVE = https://github.com/mirage/$(NAME)/archive/
 
 release:

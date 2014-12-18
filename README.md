@@ -1,35 +1,37 @@
 ## Mirage type-classes
 
-A set of functors and combinators to pretty-print (using sexplib), to
-convert to and from and JSON and Cstruct buffers.
+A set of functors and combinators to convert to and from and JSON values
+and Cstruct buffers.
 
 ```ocaml
+# require "tc";;
+
 # Tc.show Tc.string "Hello world!";;
-- : string = "\"Hello world!\""
+- : string = "[\"Hello world!\"]"
+
 # Tc.to_json (Tc.pair Tc.int Tc.string) (3, "foo");;
-- : Ezjsonm.t = `A [`String "3"; `String "foo"]
+- : Ezjsonm.value = `A [`Float 3.; `String "foo"]
 ```
 
 A slightly more complex example, using autogen code instead of functor
 composition:
 
 ```ocaml
-# camlp4o;;
-# require "sexplib.syntax";;
-# require "comparelib.syntax";;
-# require "bin_prot.syntax";;
-# module M = struct
-    type t = { foo: int; bar: string list } with sexp, bin_prot, compare
-  end;;
-# module X = Tc.S0(M);;
-# let t = { foo = 3; bar = [ "hello"; "world" ] };;
+# require "tc";;
 
-# Tc.to_json (module X) t;;
-- : Ezjsonm.t =
-`A
-  [`A [`String "foo"; `String "3"];
-   `A [`String "bar"; `A [`String "hello"; `String "world"]]]
+# type t = { foo: int; bar: string list };;
 
-# Tc.write_string (module X) t;;
-- : string = "\003\002\005hello\005world"
+# let t =
+    let module M = Tc.Pair (Tc.Int) (Tc.List(Tc.String)) in
+    let to_t (foo, bar) = { foo; bar} and of_t {foo; bar} = (foo, bar) in
+    Tc.biject (module M) to_t of_t;;
+
+# Tc.show t { foo = 3; bar = [ "hello"; "world" ] }
+- : string = "[3,[\"hello\",\"world\"]]"
+
+# let j = Tc.to_json t { foo = 3; bar = [ "hello"; "world" ] }
+- : Ezjsonm.value = `A [`Float 3.; `A [`String "hello"; `String "world"]]
+
+# Tc.write_string Tc.string "hello world";;
+- : string = "\011hello world"
 ```
