@@ -93,7 +93,7 @@ module type S2 = sig
   val read: 'a reader -> 'b reader -> ('a, 'b) t reader
 end
 
-(** Abstract identifiers with two polymorphic parameters. *)
+(** Abstract identifiers with three polymorphic parameters. *)
 module type S3 = sig
   type ('a, 'b, 'c) t
   val equal: 'a equal -> 'b equal -> 'c equal -> ('a, 'b, 'c) t equal
